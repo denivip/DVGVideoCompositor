@@ -1,7 +1,7 @@
 #import "DVGOpenGLRenderer.h"
 #import "DVGVideoCompositionInstruction.h"
 
-GLint uniforms[NUM_UNIFORMS];
+GLint rpl_uniforms[NUM_UNIFORMS];
 
 static const char kBasicVertexShader[] = {
     "attribute vec4 position; \n \
@@ -190,9 +190,9 @@ bail:
 	}
 	
 	// Get uniform locations.
-	uniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
-    uniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
-    uniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
+	rpl_uniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
+    rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
+    rpl_uniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
 	
 	// Release vertex and fragment shaders.
 	if (vertShader) {

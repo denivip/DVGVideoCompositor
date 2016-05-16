@@ -12,7 +12,7 @@ enum
 	UNIFORM_RENDER_TRANSFORM_RPL,
    	NUM_UNIFORMS
 };
-extern GLint uniforms[NUM_UNIFORMS];
+extern GLint rpl_uniforms[NUM_UNIFORMS];
 
 enum
 {
