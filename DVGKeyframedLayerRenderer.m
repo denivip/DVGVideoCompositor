@@ -96,12 +96,15 @@
                 DVGVideoInstructionSceneObject* layerObj = [currentInstruction.animationScene.objects objectAtIndex:i];
                 CGFloat layerObjWidth = layerObj.relativeSize.width;
                 CGFloat layerObjHeigth = layerObj.relativeSize.height;
+                CGFloat layerObjAspect = 1;
                 if(layerObjWidth <= 0){
                     // calcualting from height
-                    layerObjWidth = layerObjHeigth*layerObj.objectImage.size.width/layerObj.objectImage.size.height*vport_h/vport_w;
+                    layerObjAspect = vport_w/vport_h;
+                    layerObjWidth = layerObjHeigth*layerObj.objectImage.size.width/layerObj.objectImage.size.height;
                 }else if(layerObjHeigth <= 0){
-                    // calcualting from height
-                    layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width*vport_w/vport_h;
+                    // calcualting from width
+                    layerObjAspect = vport_w/vport_h;
+                    layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width;
                 }
                 CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
                 [currentInstruction.animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
@@ -138,7 +141,7 @@
 // ------ 3 ------
                 CGAffineTransform modelMatrix = CGAffineTransformIdentity;
                 modelMatrix = CGAffineTransformTranslate(modelMatrix, layerValues[kDVGVITimelineXPosKey] , layerValues[kDVGVITimelineYPosKey]);
-                modelMatrix = CGAffineTransformScale(modelMatrix, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]);
+                modelMatrix = CGAffineTransformScale(modelMatrix, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
                 modelMatrix = CGAffineTransformRotate(modelMatrix, layerValues[kDVGVITimelineRotationKey]);
                 modelMatrix = CGAffineTransformScale(modelMatrix, layerObjWidth, layerObjHeigth);
                 

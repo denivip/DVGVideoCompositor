@@ -1,4 +1,4 @@
-#include "easing.h"
+#include "DVGEasing.h"
 #import "DVGVideoCompositionInstruction.h"
 CGFloat kDefaultValuesForKeys[kDVGVITimelineKeyLast] = {0,0,0,1,1,1,0};
 
