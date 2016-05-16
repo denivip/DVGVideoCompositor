@@ -14,19 +14,19 @@
 #include "DVGEasing.h"
 
 // Modeled after the line y = x
-AHFloat LinearInterpolation(AHFloat p)
+DVGFloat DVGLinearInterpolation(DVGFloat p)
 {
 	return p;
 }
 
 // Modeled after the parabola y = x^2
-AHFloat QuadraticEaseIn(AHFloat p)
+DVGFloat DVGQuadraticEaseIn(DVGFloat p)
 {
 	return p * p;
 }
 
 // Modeled after the parabola y = -x^2 + 2x
-AHFloat QuadraticEaseOut(AHFloat p)
+DVGFloat DVGQuadraticEaseOut(DVGFloat p)
 {
 	return -(p * (p - 2));
 }
@@ -34,7 +34,7 @@ AHFloat QuadraticEaseOut(AHFloat p)
 // Modeled after the piecewise quadratic
 // y = (1/2)((2x)^2)             ; [0, 0.5)
 // y = -(1/2)((2x-1)*(2x-3) - 1) ; [0.5, 1]
-AHFloat QuadraticEaseInOut(AHFloat p)
+DVGFloat DVGQuadraticEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -47,22 +47,22 @@ AHFloat QuadraticEaseInOut(AHFloat p)
 }
 
 // Modeled after the cubic y = x^3
-AHFloat CubicEaseIn(AHFloat p)
+DVGFloat DVGCubicEaseIn(DVGFloat p)
 {
 	return p * p * p;
 }
 
 // Modeled after the cubic y = (x - 1)^3 + 1
-AHFloat CubicEaseOut(AHFloat p)
+DVGFloat DVGCubicEaseOut(DVGFloat p)
 {
-	AHFloat f = (p - 1);
+	DVGFloat f = (p - 1);
 	return f * f * f + 1;
 }
 
 // Modeled after the piecewise cubic
 // y = (1/2)((2x)^3)       ; [0, 0.5)
 // y = (1/2)((2x-2)^3 + 2) ; [0.5, 1]
-AHFloat CubicEaseInOut(AHFloat p)
+DVGFloat DVGCubicEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -70,28 +70,28 @@ AHFloat CubicEaseInOut(AHFloat p)
 	}
 	else
 	{
-		AHFloat f = ((2 * p) - 2);
+		DVGFloat f = ((2 * p) - 2);
 		return 0.5 * f * f * f + 1;
 	}
 }
 
 // Modeled after the quartic x^4
-AHFloat QuarticEaseIn(AHFloat p)
+DVGFloat DVGQuarticEaseIn(DVGFloat p)
 {
 	return p * p * p * p;
 }
 
 // Modeled after the quartic y = 1 - (x - 1)^4
-AHFloat QuarticEaseOut(AHFloat p)
+DVGFloat DVGQuarticEaseOut(DVGFloat p)
 {
-	AHFloat f = (p - 1);
+	DVGFloat f = (p - 1);
 	return f * f * f * (1 - p) + 1;
 }
 
 // Modeled after the piecewise quartic
 // y = (1/2)((2x)^4)        ; [0, 0.5)
 // y = -(1/2)((2x-2)^4 - 2) ; [0.5, 1]
-AHFloat QuarticEaseInOut(AHFloat p) 
+DVGFloat DVGQuarticEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -99,28 +99,28 @@ AHFloat QuarticEaseInOut(AHFloat p)
 	}
 	else
 	{
-		AHFloat f = (p - 1);
+		DVGFloat f = (p - 1);
 		return -8 * f * f * f * f + 1;
 	}
 }
 
 // Modeled after the quintic y = x^5
-AHFloat QuinticEaseIn(AHFloat p) 
+DVGFloat DVGQuinticEaseIn(DVGFloat p)
 {
 	return p * p * p * p * p;
 }
 
 // Modeled after the quintic y = (x - 1)^5 + 1
-AHFloat QuinticEaseOut(AHFloat p) 
+DVGFloat DVGQuinticEaseOut(DVGFloat p)
 {
-	AHFloat f = (p - 1);
+	DVGFloat f = (p - 1);
 	return f * f * f * f * f + 1;
 }
 
 // Modeled after the piecewise quintic
 // y = (1/2)((2x)^5)       ; [0, 0.5)
 // y = (1/2)((2x-2)^5 + 2) ; [0.5, 1]
-AHFloat QuinticEaseInOut(AHFloat p) 
+DVGFloat DVGQuinticEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -128,37 +128,37 @@ AHFloat QuinticEaseInOut(AHFloat p)
 	}
 	else
 	{
-		AHFloat f = ((2 * p) - 2);
+		DVGFloat f = ((2 * p) - 2);
 		return  0.5 * f * f * f * f * f + 1;
 	}
 }
 
 // Modeled after quarter-cycle of sine wave
-AHFloat SineEaseIn(AHFloat p)
+DVGFloat DVGSineEaseIn(DVGFloat p)
 {
 	return sin((p - 1) * M_PI_2) + 1;
 }
 
 // Modeled after quarter-cycle of sine wave (different phase)
-AHFloat SineEaseOut(AHFloat p)
+DVGFloat DVGSineEaseOut(DVGFloat p)
 {
 	return sin(p * M_PI_2);
 }
 
 // Modeled after half sine wave
-AHFloat SineEaseInOut(AHFloat p)
+DVGFloat DVGSineEaseInOut(DVGFloat p)
 {
 	return 0.5 * (1 - cos(p * M_PI));
 }
 
 // Modeled after shifted quadrant IV of unit circle
-AHFloat CircularEaseIn(AHFloat p)
+DVGFloat DVGCircularEaseIn(DVGFloat p)
 {
 	return 1 - sqrt(1 - (p * p));
 }
 
 // Modeled after shifted quadrant II of unit circle
-AHFloat CircularEaseOut(AHFloat p)
+DVGFloat DVGCircularEaseOut(DVGFloat p)
 {
 	return sqrt((2 - p) * p);
 }
@@ -166,7 +166,7 @@ AHFloat CircularEaseOut(AHFloat p)
 // Modeled after the piecewise circular function
 // y = (1/2)(1 - sqrt(1 - 4x^2))           ; [0, 0.5)
 // y = (1/2)(sqrt(-(2x - 3)*(2x - 1)) + 1) ; [0.5, 1]
-AHFloat CircularEaseInOut(AHFloat p)
+DVGFloat DVGCircularEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -179,13 +179,13 @@ AHFloat CircularEaseInOut(AHFloat p)
 }
 
 // Modeled after the exponential function y = 2^(10(x - 1))
-AHFloat ExponentialEaseIn(AHFloat p)
+DVGFloat DVGExponentialEaseIn(DVGFloat p)
 {
 	return (p == 0.0) ? p : pow(2, 10 * (p - 1));
 }
 
 // Modeled after the exponential function y = -2^(-10x) + 1
-AHFloat ExponentialEaseOut(AHFloat p)
+DVGFloat DVGExponentialEaseOut(DVGFloat p)
 {
 	return (p == 1.0) ? p : 1 - pow(2, -10 * p);
 }
@@ -193,7 +193,7 @@ AHFloat ExponentialEaseOut(AHFloat p)
 // Modeled after the piecewise exponential
 // y = (1/2)2^(10(2x - 1))         ; [0,0.5)
 // y = -(1/2)*2^(-10(2x - 1))) + 1 ; [0.5,1]
-AHFloat ExponentialEaseInOut(AHFloat p)
+DVGFloat DVGExponentialEaseInOut(DVGFloat p)
 {
 	if(p == 0.0 || p == 1.0) return p;
 	
@@ -208,13 +208,13 @@ AHFloat ExponentialEaseInOut(AHFloat p)
 }
 
 // Modeled after the damped sine wave y = sin(13pi/2*x)*pow(2, 10 * (x - 1))
-AHFloat ElasticEaseIn(AHFloat p)
+DVGFloat DVGElasticEaseIn(DVGFloat p)
 {
 	return sin(13 * M_PI_2 * p) * pow(2, 10 * (p - 1));
 }
 
 // Modeled after the damped sine wave y = sin(-13pi/2*(x + 1))*pow(2, -10x) + 1
-AHFloat ElasticEaseOut(AHFloat p)
+DVGFloat DVGElasticEaseOut(DVGFloat p)
 {
 	return sin(-13 * M_PI_2 * (p + 1)) * pow(2, -10 * p) + 1;
 }
@@ -222,7 +222,7 @@ AHFloat ElasticEaseOut(AHFloat p)
 // Modeled after the piecewise exponentially-damped sine wave:
 // y = (1/2)*sin(13pi/2*(2*x))*pow(2, 10 * ((2*x) - 1))      ; [0,0.5)
 // y = (1/2)*(sin(-13pi/2*((2x-1)+1))*pow(2,-10(2*x-1)) + 2) ; [0.5, 1]
-AHFloat ElasticEaseInOut(AHFloat p)
+DVGFloat DVGElasticEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
@@ -235,41 +235,41 @@ AHFloat ElasticEaseInOut(AHFloat p)
 }
 
 // Modeled after the overshooting cubic y = x^3-x*sin(x*pi)
-AHFloat BackEaseIn(AHFloat p)
+DVGFloat DVGBackEaseIn(DVGFloat p)
 {
 	return p * p * p - p * sin(p * M_PI);
 }
 
 // Modeled after overshooting cubic y = 1-((1-x)^3-(1-x)*sin((1-x)*pi))
-AHFloat BackEaseOut(AHFloat p)
+DVGFloat DVGBackEaseOut(DVGFloat p)
 {
-	AHFloat f = (1 - p);
+	DVGFloat f = (1 - p);
 	return 1 - (f * f * f - f * sin(f * M_PI));
 }
 
 // Modeled after the piecewise overshooting cubic function:
 // y = (1/2)*((2x)^3-(2x)*sin(2*x*pi))           ; [0, 0.5)
 // y = (1/2)*(1-((1-x)^3-(1-x)*sin((1-x)*pi))+1) ; [0.5, 1]
-AHFloat BackEaseInOut(AHFloat p)
+DVGFloat DVGBackEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
-		AHFloat f = 2 * p;
+		DVGFloat f = 2 * p;
 		return 0.5 * (f * f * f - f * sin(f * M_PI));
 	}
 	else
 	{
-		AHFloat f = (1 - (2*p - 1));
+		DVGFloat f = (1 - (2*p - 1));
 		return 0.5 * (1 - (f * f * f - f * sin(f * M_PI))) + 0.5;
 	}
 }
 
-AHFloat BounceEaseIn(AHFloat p)
+DVGFloat DVGBounceEaseIn(DVGFloat p)
 {
-	return 1 - BounceEaseOut(1 - p);
+	return 1 - DVGBounceEaseOut(1 - p);
 }
 
-AHFloat BounceEaseOut(AHFloat p)
+DVGFloat DVGBounceEaseOut(DVGFloat p)
 {
 	if(p < 4/11.0)
 	{
@@ -289,14 +289,14 @@ AHFloat BounceEaseOut(AHFloat p)
 	}
 }
 
-AHFloat BounceEaseInOut(AHFloat p)
+DVGFloat DVGBounceEaseInOut(DVGFloat p)
 {
 	if(p < 0.5)
 	{
-		return 0.5 * BounceEaseIn(p*2);
+		return 0.5 * DVGBounceEaseIn(p*2);
 	}
 	else
 	{
-		return 0.5 * BounceEaseOut(p * 2 - 1) + 0.5;
+		return 0.5 * DVGBounceEaseOut(p * 2 - 1) + 0.5;
 	}
 }

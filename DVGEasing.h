@@ -1,86 +1,70 @@
-//
-//  easing.h
-//
-//  Copyright (c) 2011, Auerhaus Development, LLC
-//
-//  This program is free software. It comes without any warranty, to
-//  the extent permitted by applicable law. You can redistribute it
-//  and/or modify it under the terms of the Do What The Fuck You Want
-//  To Public License, Version 2, as published by Sam Hocevar. See
-//  http://sam.zoy.org/wtfpl/COPYING for more details.
-//
-
-#ifndef AH_EASING_H
-#define AH_EASING_H
+#ifndef DVGEASING_H
+#define DVGEASING_H
 
 #if defined(__LP64__) && !defined(AH_EASING_USE_DBL_PRECIS)
-#define AH_EASING_USE_DBL_PRECIS
-#endif
-
-#ifdef AH_EASING_USE_DBL_PRECIS
-#define AHFloat double
+#define DVGFloat double
 #else
-#define AHFloat float
+#define DVGFloat float
 #endif
 
 #if defined __cplusplus
 extern "C" {
 #endif
 
-typedef AHFloat (*AHEasingFunction)(AHFloat);
+typedef DVGFloat (*DVGEasingFunction)(DVGFloat);
 
 // Linear interpolation (no easing)
-AHFloat LinearInterpolation(AHFloat p);
+DVGFloat DVGLinearInterpolation(DVGFloat p);
 
 // Quadratic easing; p^2
-AHFloat QuadraticEaseIn(AHFloat p);
-AHFloat QuadraticEaseOut(AHFloat p);
-AHFloat QuadraticEaseInOut(AHFloat p);
+DVGFloat DVGQuadraticEaseIn(DVGFloat p);
+DVGFloat DVGQuadraticEaseOut(DVGFloat p);
+DVGFloat DVGQuadraticEaseInOut(DVGFloat p);
 
 // Cubic easing; p^3
-AHFloat CubicEaseIn(AHFloat p);
-AHFloat CubicEaseOut(AHFloat p);
-AHFloat CubicEaseInOut(AHFloat p);
+DVGFloat DVGCubicEaseIn(DVGFloat p);
+DVGFloat DVGCubicEaseOut(DVGFloat p);
+DVGFloat DVGCubicEaseInOut(DVGFloat p);
 
 // Quartic easing; p^4
-AHFloat QuarticEaseIn(AHFloat p);
-AHFloat QuarticEaseOut(AHFloat p);
-AHFloat QuarticEaseInOut(AHFloat p);
+DVGFloat DVGQuarticEaseIn(DVGFloat p);
+DVGFloat DVGQuarticEaseOut(DVGFloat p);
+DVGFloat DVGQuarticEaseInOut(DVGFloat p);
 
 // Quintic easing; p^5
-AHFloat QuinticEaseIn(AHFloat p);
-AHFloat QuinticEaseOut(AHFloat p);
-AHFloat QuinticEaseInOut(AHFloat p);
+DVGFloat DVGQuinticEaseIn(DVGFloat p);
+DVGFloat DVGQuinticEaseOut(DVGFloat p);
+DVGFloat DVGQuinticEaseInOut(DVGFloat p);
 
 // Sine wave easing; sin(p * PI/2)
-AHFloat SineEaseIn(AHFloat p);
-AHFloat SineEaseOut(AHFloat p);
-AHFloat SineEaseInOut(AHFloat p);
+DVGFloat DVGSineEaseIn(DVGFloat p);
+DVGFloat DVGSineEaseOut(DVGFloat p);
+DVGFloat DVGSineEaseInOut(DVGFloat p);
 
 // Circular easing; sqrt(1 - p^2)
-AHFloat CircularEaseIn(AHFloat p);
-AHFloat CircularEaseOut(AHFloat p);
-AHFloat CircularEaseInOut(AHFloat p);
+DVGFloat DVGCircularEaseIn(DVGFloat p);
+DVGFloat DVGCircularEaseOut(DVGFloat p);
+DVGFloat DVGCircularEaseInOut(DVGFloat p);
 
 // Exponential easing, base 2
-AHFloat ExponentialEaseIn(AHFloat p);
-AHFloat ExponentialEaseOut(AHFloat p);
-AHFloat ExponentialEaseInOut(AHFloat p);
+DVGFloat DVGExponentialEaseIn(DVGFloat p);
+DVGFloat DVGExponentialEaseOut(DVGFloat p);
+DVGFloat DVGExponentialEaseInOut(DVGFloat p);
 
 // Exponentially-damped sine wave easing
-AHFloat ElasticEaseIn(AHFloat p);
-AHFloat ElasticEaseOut(AHFloat p);
-AHFloat ElasticEaseInOut(AHFloat p);
+DVGFloat DVGElasticEaseIn(DVGFloat p);
+DVGFloat DVGElasticEaseOut(DVGFloat p);
+DVGFloat DVGElasticEaseInOut(DVGFloat p);
 
 // Overshooting cubic easing; 
-AHFloat BackEaseIn(AHFloat p);
-AHFloat BackEaseOut(AHFloat p);
-AHFloat BackEaseInOut(AHFloat p);
+DVGFloat DVGBackEaseIn(DVGFloat p);
+DVGFloat DVGBackEaseOut(DVGFloat p);
+DVGFloat DVGBackEaseInOut(DVGFloat p);
 
 // Exponentially-decaying bounce easing
-AHFloat BounceEaseIn(AHFloat p);
-AHFloat BounceEaseOut(AHFloat p);
-AHFloat BounceEaseInOut(AHFloat p);
+DVGFloat DVGBounceEaseIn(DVGFloat p);
+DVGFloat DVGBounceEaseOut(DVGFloat p);
+DVGFloat DVGBounceEaseInOut(DVGFloat p);
 
 #ifdef __cplusplus
 }

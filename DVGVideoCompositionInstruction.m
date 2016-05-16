@@ -51,13 +51,13 @@ CGFloat kDefaultValuesForKeys[kDVGVITimelineKeyLast] = {0,0,0,1,1,1,0};
         // applying easing
         switch(keyframe.easing){
             case kDVGVITimelineEasingIn:
-                needle = CubicEaseIn(needle);
+                needle = DVGCubicEaseIn(needle);
                 break;
             case kDVGVITimelineEasingOut:
-                needle = CubicEaseOut(needle);
+                needle = DVGCubicEaseOut(needle);
                 break;
             case kDVGVITimelineEasingInOut:
-                needle = CubicEaseInOut(needle);
+                needle = DVGCubicEaseInOut(needle);
                 break;
             case kDVGVITimelineInterpolationNone:
                 needle = 0;
