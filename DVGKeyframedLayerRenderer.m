@@ -206,11 +206,23 @@
         }
         UIView* uiObj = (UIView*)uiobj;
         DVGVideoInstructionSceneObject* layerObj = [animationScene.objects objectAtIndex:i];
+        CGFloat layerObjWidth = layerObj.relativeSize.width;
+        CGFloat layerObjHeigth = layerObj.relativeSize.height;
+        CGFloat layerObjAspect = 1;
+        if(layerObjWidth <= 0){
+            // calcualting from height
+            layerObjAspect = canvasSize.width/canvasSize.height;
+            layerObjWidth = layerObjHeigth*layerObj.objectImage.size.width/layerObj.objectImage.size.height;
+        }else if(layerObjHeigth <= 0){
+            // calcualting from width
+            layerObjAspect = canvasSize.width/canvasSize.height;
+            layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width;
+        }
         CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
         [animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
         uiObj.transform = CGAffineTransformIdentity;
-        CGFloat w = canvasSize.width*layerObj.relativeSize.width*layerValues[kDVGVITimelineXScaleKey];
-        CGFloat h = canvasSize.height*layerObj.relativeSize.height*layerValues[kDVGVITimelineYScaleKey];//*canvasSize.width/canvasSize.height;
+        CGFloat w = canvasSize.width*layerObjWidth*layerValues[kDVGVITimelineXScaleKey];
+        CGFloat h = canvasSize.height*layerObjHeigth*layerValues[kDVGVITimelineYScaleKey]*layerObjAspect;
         CGRect uiObjRect = CGRectMake(0, 0, w, h);
         uiObj.frame = uiObjRect;
         uiObj.bounds = uiObjRect;
