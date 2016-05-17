@@ -298,7 +298,7 @@ bail:
         orient = kDVGGLFlipVertical;
     }else if (preferredTransform.a == -1.f && preferredTransform.b == 0.f &&
                   preferredTransform.c == 0.f && preferredTransform.d == -1.f) {
-        orient = kDVGGLFlipVertical;
+        orient = kDVGGLRotate180;
     }else if (preferredTransform.a == 0.f && preferredTransform.d == 0.f &&
               (preferredTransform.b == 1.f || preferredTransform.b == -1.f) &&
               (preferredTransform.c == 1.f || preferredTransform.c == -1.f)) {
