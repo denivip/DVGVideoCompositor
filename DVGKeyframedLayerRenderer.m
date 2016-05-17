@@ -220,6 +220,7 @@
         }
         CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
         [animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
+        
         uiObj.transform = CGAffineTransformIdentity;
         CGFloat w = canvasSize.width*layerObjWidth*layerValues[kDVGVITimelineXScaleKey];
         CGFloat h = canvasSize.height*layerObjHeigth*layerValues[kDVGVITimelineYScaleKey]*layerObjAspect;
@@ -230,7 +231,7 @@
         CGAffineTransform rotation = CGAffineTransformIdentity;
         rotation = CGAffineTransformTranslate(rotation, -uiObjRect.size.width/2, -uiObjRect.size.height/2);
         rotation = CGAffineTransformRotate(rotation, layerValues[kDVGVITimelineRotationKey]);
-        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasView.center.x + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2, canvasView.center.y + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
+        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasSize.width/2 + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2, canvasSize.height/2 + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
         CGAffineTransform final = CGAffineTransformConcat(rotation,position);
         uiObj.transform = final;
         //NSLog(@"%f-%f %f-%f %f:%f r=%f",canvasSize.width,canvasSize.height, canvasView.center.x, canvasView.center.y,layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],layerValues[kDVGVITimelineRotationKey]);
