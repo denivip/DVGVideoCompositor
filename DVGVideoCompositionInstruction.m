@@ -64,10 +64,18 @@ CGFloat kDefaultValuesForKeys[kDVGVITimelineKeyLast] = {0,0,0,1,1,1,0};
             default:
                 break;
         }
-        return keyframe.value+(keyframe_next.value - keyframe.value)*needle;
+        CGFloat res = keyframe.value+(keyframe_next.value - keyframe.value)*needle;
+        if(isnan(res)){
+            res = kDefaultValuesForKeys[self.timeline_key];
+        }
+        return res;
     }
     DVGVideoInstructionTimelineKeyframe* keyframe_last = [self.keyframes objectAtIndex:keyframes_count-1];
-    return keyframe_last.value;
+    CGFloat res = keyframe_last.value;
+    if(isnan(res)){
+        res = kDefaultValuesForKeys[self.timeline_key];
+    }
+    return res;
 }
 
 +(DVGVideoInstructionTimeline *)timelineWithKey:(DVGVITimelineKeyType)key objectIndex:(NSInteger)objectIndex keyFrames:(NSArray<DVGVideoInstructionTimelineKeyframe *>*)keyframes;
