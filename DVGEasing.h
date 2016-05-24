@@ -1,11 +1,7 @@
 #ifndef DVGEASING_H
 #define DVGEASING_H
 
-#if defined(__LP64__) && !defined(AH_EASING_USE_DBL_PRECIS)
 #define DVGFloat double
-#else
-#define DVGFloat float
-#endif
 
 #if defined __cplusplus
 extern "C" {
