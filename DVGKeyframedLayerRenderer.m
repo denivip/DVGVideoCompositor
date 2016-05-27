@@ -195,7 +195,8 @@
 
 + (void)applyAnimationScene:(DVGVideoInstructionScene*)animationScene atTime:(CGFloat)time withPlaceholders:(NSArray<UIView*>*)uiPlaceholders forCanvas:(UIView*)canvasView {
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[animationScene.objects count]);
-    CGSize canvasSize = canvasView.frame.size;
+    CGRect canvasRect = canvasView.frame;
+    CGSize canvasSize = canvasRect.size;
     for(int i=0; i < layersCount; i++){
         if(i >= [uiPlaceholders count]){
             break;
@@ -210,10 +211,18 @@
         CGFloat layerObjHeigth = layerObj.relativeSize.height;
         CGFloat layerObjAspect = 1;
         if(layerObjWidth <= 0){
+            if(layerObj.objectImage == nil){
+                NSLog(@"applyAnimationScene: Cant calc object size, skipping #%i",i);
+                continue;
+            }
             // calcualting from height
             layerObjAspect = canvasSize.width/canvasSize.height;
             layerObjWidth = layerObjHeigth*layerObj.objectImage.size.width/layerObj.objectImage.size.height;
         }else if(layerObjHeigth <= 0){
+            if(layerObj.objectImage == nil){
+                NSLog(@"applyAnimationScene: Cant calc object size, skipping #%i",i);
+                continue;
+            }
             // calcualting from width
             layerObjAspect = canvasSize.width/canvasSize.height;
             layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width;
@@ -231,10 +240,13 @@
         CGAffineTransform rotation = CGAffineTransformIdentity;
         rotation = CGAffineTransformTranslate(rotation, -uiObjRect.size.width/2, -uiObjRect.size.height/2);
         rotation = CGAffineTransformRotate(rotation, layerValues[kDVGVITimelineRotationKey]);
-        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasSize.width/2 + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2, canvasSize.height/2 + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
+        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasRect.origin.x + canvasSize.width/2 + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2,
+                                                                      canvasRect.origin.y + canvasSize.height/2 + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
         CGAffineTransform final = CGAffineTransformConcat(rotation,position);
         uiObj.transform = final;
-        //NSLog(@"x%f y%f r%f a%f",layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],layerValues[kDVGVITimelineRotationKey],layerValues[kDVGVITimelineAlphaKey]);
+        //NSLog(@"x%f y%f r%f a%f",
+        //layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],
+        //layerValues[kDVGVITimelineRotationKey],layerValues[kDVGVITimelineAlphaKey]);
     }
 }
 
