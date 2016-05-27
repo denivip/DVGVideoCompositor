@@ -195,7 +195,7 @@
 
 + (void)applyAnimationScene:(DVGVideoInstructionScene*)animationScene atTime:(CGFloat)time withPlaceholders:(NSArray<UIView*>*)uiPlaceholders forCanvas:(UIView*)canvasView {
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[animationScene.objects count]);
-    CGRect canvasRect = canvasView.frame;
+    CGRect canvasRect = canvasView.frame;// Is is EXPECTED that origin = (0,0), as in video
     CGSize canvasSize = canvasRect.size;
     for(int i=0; i < layersCount; i++){
         if(i >= [uiPlaceholders count]){
@@ -240,8 +240,8 @@
         CGAffineTransform rotation = CGAffineTransformIdentity;
         rotation = CGAffineTransformTranslate(rotation, -uiObjRect.size.width/2, -uiObjRect.size.height/2);
         rotation = CGAffineTransformRotate(rotation, layerValues[kDVGVITimelineRotationKey]);
-        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasRect.origin.x + canvasSize.width/2 + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2,
-                                                                      canvasRect.origin.y + canvasSize.height/2 + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
+        CGAffineTransform position = CGAffineTransformMakeTranslation(canvasSize.width/2 + layerValues[kDVGVITimelineXPosKey]*canvasSize.width/2,
+                                                                      canvasSize.height/2 + layerValues[kDVGVITimelineYPosKey]*canvasSize.height/2);
         CGAffineTransform final = CGAffineTransformConcat(rotation,position);
         uiObj.transform = final;
         //NSLog(@"x%f y%f r%f a%f",
