@@ -31,8 +31,8 @@
         CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:backgroundPixelBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
         DVGGLRotationMode backgroundOrientation = currentInstruction.backgroundTrackOrientation;
-        CGFloat vport_w = CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);
-        CGFloat vport_h = CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);
+        CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
+        CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
         
 		glUseProgram(self.rplProgram);
 		
@@ -197,6 +197,9 @@
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[animationScene.objects count]);
     CGRect canvasRect = canvasView.frame;// Is is EXPECTED that origin = (0,0), as in video
     CGSize canvasSize = canvasRect.size;
+    if(canvasSize.width < 1 || canvasSize.height < 1){
+        return;
+    }
     for(int i=0; i < layersCount; i++){
         if(i >= [uiPlaceholders count]){
             break;
