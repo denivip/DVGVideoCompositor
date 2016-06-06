@@ -30,6 +30,10 @@
         
         CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:backgroundPixelBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
+        glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
+        // Attach the destination texture as a color attachment to the off screen frame buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
+        
         DVGGLRotationMode backgroundOrientation = currentInstruction.backgroundTrackOrientation;
         CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
         CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
@@ -45,9 +49,7 @@
 		);
 		
 		glUniformMatrix4fv(rpl_uniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
-		
-        glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
-		
+        
         glViewport(0, 0, (int)vport_w, (int)vport_h);
 		
         glActiveTexture(GL_TEXTURE0);
@@ -56,9 +58,6 @@
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		
-		// Attach the destination texture as a color attachment to the off screen frame buffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
 		
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 			NSLog(@"Failed to make complete framebuffer object %x", glCheckFramebufferStatus(GL_FRAMEBUFFER));
