@@ -290,12 +290,24 @@ bail:
 }
 
 #endif
-+ (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform
++ (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)rotation andSize:(CGSize)videoSize
+{
+    if((rotation) == kDVGGLRotateLeft || (rotation) == kDVGGLRotateRight || (rotation) == kDVGGLRotateRightFlipVertical || (rotation) == kDVGGLRotateRightFlipHorizontal){
+        videoSize = CGSizeMake(videoSize.height,videoSize.width);
+    }
+    return videoSize;
+}
+
++ (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize
 {
     DVGGLRotationMode orient = kDVGGLNoRotation;
     if (preferredTransform.a == 0.f && preferredTransform.b == -1.f &&
         preferredTransform.c == 1.f && preferredTransform.d == 0.f) {
-        orient = kDVGGLFlipVertical;
+        if(videoSize.height > videoSize.width){
+            orient = kDVGGLRotateLeft;
+        }else{
+            orient = kDVGGLFlipVertical;
+        }
     }else if (preferredTransform.a == -1.f && preferredTransform.b == 0.f &&
                   preferredTransform.c == 0.f && preferredTransform.d == -1.f) {
         orient = kDVGGLRotate180;

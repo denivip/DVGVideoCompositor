@@ -159,10 +159,8 @@
     CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
     CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
-    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform];
-    if (DVGGLRotationSwapsWidthAndHeight(inputRotation)){
-        videoSize = CGSizeMake(videoSize.height,videoSize.width);
-    }
+    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
@@ -186,10 +184,8 @@
     CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
     CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
-    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform];
-    if (DVGGLRotationSwapsWidthAndHeight(inputRotation)){
-        videoSize = CGSizeMake(videoSize.height,videoSize.width);
-    }
+    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
@@ -215,6 +211,7 @@
           andAnimationScene:(DVGVideoInstructionScene*)animscene
                    forAsset:(AVAsset*)asset
 {
+    CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
     CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
     AVMutableCompositionTrack *compositionVideoTrack;
     AVMutableCompositionTrack *compositionAudioTrack;
@@ -230,7 +227,7 @@
                                                                                                               andAnimationScene:animscene
                                                                                                                    forTimeRange:timeRangeInAsset];
     videoInstruction.backgroundTrackID = compositionVideoTrack.trackID;
-    videoInstruction.backgroundTrackOrientation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform];
+    videoInstruction.backgroundTrackOrientation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
     [instructions addObject:videoInstruction];
     
     videoComposition.instructions = instructions;

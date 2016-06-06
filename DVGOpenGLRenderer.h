@@ -31,7 +31,6 @@ typedef enum {
     kDVGGLRotateRightFlipHorizontal,
     kDVGGLRotate180
 } DVGGLRotationMode;
-#define DVGGLRotationSwapsWidthAndHeight(rotation) ((rotation) == kDVGGLRotateLeft || (rotation) == kDVGGLRotateRight || (rotation) == kDVGGLRotateRightFlipVertical || (rotation) == kDVGGLRotateRightFlipHorizontal)
 
 @class DVGVideoCompositionInstruction;
 @interface DVGOpenGLRenderer : NSObject
@@ -45,7 +44,8 @@ typedef enum {
 - (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 - (void)renderPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer usingBackgroundSourceBuffer:(CVPixelBufferRef)backgroundPixelBuffer
           withInstruction:(DVGVideoCompositionInstruction*)currentInstruction atTime:(CGFloat)time;
-+ (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform;
++ (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize;
++ (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)orientation andSize:(CGSize)videoSize;
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;
 + (GLKTextureInfo*)createGLKTextureFromCGImage:(CGImageRef)image;
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image;
