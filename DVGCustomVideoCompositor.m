@@ -156,8 +156,13 @@
 }
 
 + (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGVideoInstructionScene*)animscene {
-    CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
-    CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
+    NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+    if([videoTracks count] == 0){
+        return nil;
+    }
+    AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
+    CGSize videoSize = [videoTrack naturalSize];
+    CGAffineTransform videoTransform = [videoTrack preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
     DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
     videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
@@ -181,8 +186,13 @@
 
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGVideoInstructionScene*)animscene
 {
-    CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
-    CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
+    NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+    if([videoTracks count] == 0){
+        return nil;
+    }
+    AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
+    CGSize videoSize = [videoTrack naturalSize];
+    CGAffineTransform videoTransform = [videoTrack preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
     DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
     videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
@@ -206,22 +216,31 @@
 }
 
 
-+ (void) prepareComposition:(AVMutableComposition *)composition
++ (BOOL)prepareComposition:(AVMutableComposition *)composition
         andVideoComposition:(AVMutableVideoComposition *)videoComposition
           andAnimationScene:(DVGVideoInstructionScene*)animscene
                    forAsset:(AVAsset*)asset
 {
-    CGSize videoSize = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] naturalSize];
-    CGAffineTransform videoTransform = [[[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0] preferredTransform];
+    NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+    if([videoTracks count] == 0){
+        return NO;
+    }
+    AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
+    CGSize videoSize = [videoTrack naturalSize];
+    CGAffineTransform videoTransform = [videoTrack preferredTransform];
+    CMTime videoDuration = [asset duration];
     AVMutableCompositionTrack *compositionVideoTrack;
-    AVMutableCompositionTrack *compositionAudioTrack;
     compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
-    compositionAudioTrack = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
-    CMTimeRange timeRangeInAsset = CMTimeRangeMake(kCMTimeZero, [asset duration]);
-    AVAssetTrack *clipVideoTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
-    [compositionVideoTrack insertTimeRange:timeRangeInAsset ofTrack:clipVideoTrack atTime:kCMTimeZero error:nil];
-    AVAssetTrack *clipAudioTrack = [[asset tracksWithMediaType:AVMediaTypeAudio] objectAtIndex:0];
-    [compositionAudioTrack insertTimeRange:timeRangeInAsset ofTrack:clipAudioTrack atTime:kCMTimeZero error:nil];
+    CMTimeRange timeRangeInAsset = CMTimeRangeMake(kCMTimeZero, videoDuration);
+    [compositionVideoTrack insertTimeRange:timeRangeInAsset ofTrack:videoTrack atTime:kCMTimeZero error:nil];
+    
+    NSArray* audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
+    if([audioTracks count] > 0){
+        AVMutableCompositionTrack *compositionAudioTrack;
+        compositionAudioTrack = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        AVAssetTrack *audioTrack = [audioTracks objectAtIndex:0];
+        [compositionAudioTrack insertTimeRange:timeRangeInAsset ofTrack:audioTrack atTime:kCMTimeZero error:nil];
+    }
     NSMutableArray *instructions = [NSMutableArray array];
     DVGVideoCompositionInstruction *videoInstruction = [[DVGVideoCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
                                                                                                               andAnimationScene:animscene
@@ -231,6 +250,7 @@
     [instructions addObject:videoInstruction];
     
     videoComposition.instructions = instructions;
+    return YES;
 }
 
 @end
