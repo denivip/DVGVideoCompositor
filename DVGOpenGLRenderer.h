@@ -4,6 +4,7 @@
 #import <OpenGLES/ES2/glext.h>
 #import <GLKit/GLKitBase.h>
 #import <GLKit/GLKTextureLoader.h>
+#import <AVFoundation/AVFoundation.h>
 
 enum
 {
@@ -32,18 +33,24 @@ typedef enum {
     kDVGGLRotate180
 } DVGGLRotationMode;
 
-@class DVGVideoCompositionInstruction;
+@class DVGStackableCompositionInstruction;
 @interface DVGOpenGLRenderer : NSObject
+@property CMPersistentTrackID effectTrackID;
+@property DVGGLRotationMode effectTrackOrientation;
+- (void)releaseOglResources;
 
+// opengl stuff
 @property GLuint rplProgram;
 @property CGAffineTransform renderTransform;
 @property CVOpenGLESTextureCacheRef videoTextureCache;
 @property EAGLContext *currentContext;
 @property GLuint offscreenBufferHandle;
-
 - (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
-- (void)renderPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer usingBackgroundSourceBuffer:(CVPixelBufferRef)backgroundPixelBuffer
-          withInstruction:(DVGVideoCompositionInstruction*)currentInstruction atTime:(CGFloat)time;
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+                   prevBuffer:(CVPixelBufferRef)prevBuffer
+                 sourceBuffer:(CVPixelBufferRef)trackBuffer
+                 sourceOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor;
 + (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize;
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)orientation andSize:(CGSize)videoSize;
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;

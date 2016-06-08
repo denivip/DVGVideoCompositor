@@ -1,40 +1,80 @@
-#import "DVGKeyframedLayerRenderer.h"
-#import "DVGVideoCompositionInstruction.h"
+#import "DVGKeyframedAnimationRenderer.h"
+#import "DVGStackableCompositionInstruction.h"
 #include <GLKit/GLKMath.h>
 
 #define kMaxLayersPerFrame 50
 
-@interface DVGKeyframedLayerRenderer ()
-{
-}
-
+@interface DVGKeyframedAnimationRenderer ()
+@property NSMutableArray* objectsOglBuffers;
 @end
 
-@implementation DVGKeyframedLayerRenderer
+@implementation DVGKeyframedAnimationRenderer
+-(GLKTextureInfo*)fetchOGLTextureForObject:(NSInteger)objectIndex
+{
+    id bf = [self.objectsOglBuffers objectAtIndex:objectIndex];
+    if(bf == [NSNull null]){
+        return nil;
+    }
+    return (GLKTextureInfo*)bf;
+}
 
-- (void)renderPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer usingBackgroundSourceBuffer:(CVPixelBufferRef)backgroundPixelBuffer
-          withInstruction:(DVGVideoCompositionInstruction*)currentInstruction
-                   atTime:(CGFloat)time
+-(void)prepareOglResources
+{
+    if(self.objectsOglBuffers != nil){
+        return;
+    }
+    self.objectsOglBuffers = @[].mutableCopy;
+    for(DVGKeyframedAnimationSceneObject* obj in self.animationScene.objects){
+        CGImageRef imageRef=[obj.objectImage CGImage];
+        GLKTextureInfo* bf = [DVGOpenGLRenderer createGLKTextureFromCGImage:imageRef];
+        if(bf){
+            [self.objectsOglBuffers addObject:bf];
+        }else{
+            [self.objectsOglBuffers addObject:[NSNull null]];
+        }
+    }
+}
+
+-(void)releaseOglResources
+{
+    for(int i=0;i<[self.objectsOglBuffers count];i++){
+        GLKTextureInfo* ti = [self fetchOGLTextureForObject:i];
+        if(ti){
+            GLuint name = ti.name;
+            glDeleteTextures(1, &name);
+        }
+    }
+    self.objectsOglBuffers = nil;
+    [super releaseOglResources];
+}
+
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+                   prevBuffer:(CVPixelBufferRef)prevBuffer
+                 sourceBuffer:(CVPixelBufferRef)trackBuffer
+                 sourceOrient:(DVGGLRotationMode)trackOrientation
+                   atTime:(CGFloat)time withTween:(float)tweenFactor
 {
     // http://iphonedevelopment.blogspot.ru/2009/05/opengl-es-from-ground-up-part-6_25.html
     [EAGLContext setCurrentContext:self.currentContext];
-    [currentInstruction.animationScene prepareForRendering];
+    [self prepareOglResources];
+    if(prevBuffer != nil){
+        trackBuffer = prevBuffer;
+        trackOrientation = kDVGGLNoRotation;
+    }
     //CVOpenGLESTextureRef layersTextures[kMaxLayersPerFrame] = {0};
-    NSInteger layersCount = MIN(kMaxLayersPerFrame,[currentInstruction.animationScene.objects count]);
-    if (backgroundPixelBuffer != NULL) {
+    NSInteger layersCount = MIN(kMaxLayersPerFrame,[self.animationScene.objects count]);
+    if (trackBuffer != NULL) {
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         //glBlendEquation(GL_FUNC_ADD);
         //glBlendFunc(GL_ONE, GL_ONE);
         
-        CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:backgroundPixelBuffer];
+        CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
         glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
         // Attach the destination texture as a color attachment to the off screen frame buffer
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
-        
-        DVGGLRotationMode backgroundOrientation = currentInstruction.backgroundTrackOrientation;
         CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
         CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
         
@@ -81,7 +121,7 @@
         glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
         glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
         
-        glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOpenGLRenderer textureCoordinatesForRotation:backgroundOrientation]);
+        glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOpenGLRenderer textureCoordinatesForRotation:trackOrientation]);
         glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
         
 		// Draw the background frame
@@ -90,9 +130,9 @@
         for(int i=0; i < layersCount; i++){
             //CVPixelBufferRef bf = [currentInstruction.animationScene fetchOGLBufferForObject:i];
             //CVOpenGLESTextureRef layerBGRATexture = [self bgraTextureForPixelBuffer:bf];
-            GLKTextureInfo *layerBGRATexture = [currentInstruction.animationScene fetchOGLTextureForObject:i];
+            GLKTextureInfo *layerBGRATexture = [self fetchOGLTextureForObject:i];
             if(layerBGRATexture){
-                DVGVideoInstructionSceneObject* layerObj = [currentInstruction.animationScene.objects objectAtIndex:i];
+                DVGKeyframedAnimationSceneObject* layerObj = [self.animationScene.objects objectAtIndex:i];
                 CGFloat layerObjWidth = layerObj.relativeSize.width;
                 CGFloat layerObjHeigth = layerObj.relativeSize.height;
                 CGFloat layerObjAspect = 1;
@@ -106,7 +146,7 @@
                     layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width;
                 }
                 CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
-                [currentInstruction.animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
+                [self.animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
                 //NSLog(@"layer pos: %.02f:%.02f at %.02f",layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],time);
 
 // ------ 1 ------
@@ -192,7 +232,7 @@
     }
 }
 
-+ (void)applyAnimationScene:(DVGVideoInstructionScene*)animationScene atTime:(CGFloat)time withPlaceholders:(NSArray<UIView*>*)uiPlaceholders forCanvas:(UIView*)canvasView {
++ (void)applyAnimationScene:(DVGKeyframedAnimationScene*)animationScene atTime:(CGFloat)time withPlaceholders:(NSArray<UIView*>*)uiPlaceholders forCanvas:(UIView*)canvasView {
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[animationScene.objects count]);
     CGRect canvasRect = canvasView.frame;// Is is EXPECTED that origin = (0,0), as in video
     CGSize canvasSize = canvasRect.size;
@@ -208,7 +248,7 @@
             continue;
         }
         UIView* uiObj = (UIView*)uiobj;
-        DVGVideoInstructionSceneObject* layerObj = [animationScene.objects objectAtIndex:i];
+        DVGKeyframedAnimationSceneObject* layerObj = [animationScene.objects objectAtIndex:i];
         CGFloat layerObjWidth = layerObj.relativeSize.width;
         CGFloat layerObjHeigth = layerObj.relativeSize.height;
         CGFloat layerObjAspect = 1;

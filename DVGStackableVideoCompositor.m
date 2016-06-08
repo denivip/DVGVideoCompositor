@@ -1,11 +1,11 @@
-#import "DVGVideoCompositionInstruction.h"
+#import "DVGStackableCompositionInstruction.h"
 
-#import "DVGCustomVideoCompositor.h"
-#import "DVGKeyframedLayerRenderer.h"
+#import "DVGStackableVideoCompositor.h"
+#import "DVGKeyframedAnimationRenderer.h"
 #import "DVGOpenGLRenderer.h"
 #import <CoreVideo/CoreVideo.h>
 
-@interface DVGCustomVideoCompositor()
+@interface DVGStackableVideoCompositor()
 {
 	BOOL								_shouldCancelAllRequests;
 	BOOL								_renderContextDidChange;
@@ -15,27 +15,9 @@
     CVPixelBufferRef					_previousBuffer;
 }
 
-@property (nonatomic, strong) DVGOpenGLRenderer *oglRenderer;
-
 @end
 
-
-@implementation DVGKeyframedLayerCompositor
-
-- (id)init
-{
-	self = [super init];
-	
-	if (self) {
-		self.oglRenderer = [[DVGKeyframedLayerRenderer alloc] init];
-	}
-	
-	return self;
-}
-
-@end
-
-@implementation DVGCustomVideoCompositor
+@implementation DVGStackableVideoCompositor
 
 #pragma mark - AVVideoCompositing protocol
 
@@ -44,8 +26,8 @@
 	self = [super init];
 	if (self)
 	{
-		_renderingQueue = dispatch_queue_create("com.apple.DVGCustomVideoCompositor.renderingqueue", DISPATCH_QUEUE_SERIAL); 
-		_renderContextQueue = dispatch_queue_create("com.apple.DVGCustomVideoCompositor.rendercontextqueue", DISPATCH_QUEUE_SERIAL);
+		_renderingQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.renderingqueue", DISPATCH_QUEUE_SERIAL);
+		_renderContextQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.rendercontextqueue", DISPATCH_QUEUE_SERIAL);
         _previousBuffer = nil;
 		_renderContextDidChange = NO;
 	}
@@ -110,52 +92,67 @@
 	});
 }
 
-#pragma mark - Utilities
-
-//static Float64 factorForTimeInRange(CMTime time, CMTimeRange range) /* 0.0 -> 1.0 */
-//{
-//	CMTime elapsed = CMTimeSubtract(time, range.start);
-//	return CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(range.duration);
-//}
-
 - (CVPixelBufferRef)newRenderedPixelBufferForRequest:(AVAsynchronousVideoCompositionRequest *)request error:(NSError **)errOut
 {
-	CVPixelBufferRef dstPixels = nil;
+	DVGStackableCompositionInstruction *currentInstruction = request.videoCompositionInstruction;
+    CVPixelBufferRef dstPixels = nil;
 	
 	// tweenFactor indicates how far within that timeRange are we rendering this frame. This is normalized to vary between 0.0 and 1.0.
 	// 0.0 indicates the time at first frame in that videoComposition timeRange
 	// 1.0 indicates the time at last frame in that videoComposition timeRange
-	//float tweenFactor = factorForTimeInRange(request.compositionTime, request.videoCompositionInstruction.timeRange);
-	
-	DVGVideoCompositionInstruction *currentInstruction = request.videoCompositionInstruction;
-	
-	// Source pixel buffers are used as inputs while rendering the transition
-	//CVPixelBufferRef foregroundSourceBuffer = [request sourceFrameByTrackID:currentInstruction.foregroundTrackID];
-	CVPixelBufferRef backgroundSourceBuffer = [request sourceFrameByTrackID:currentInstruction.backgroundTrackID];
-	
-	// Destination pixel buffer into which we render the output
-	dstPixels = [_renderContext newPixelBuffer];
-	
-	// Recompute normalized render transform everytime the render context changes
-	if (_renderContextDidChange) {
-		// The renderTransform returned by the renderContext is in X: [0, w] and Y: [0, h] coordinate system
-		// But since in this sample we render using OpenGLES which has its coordinate system between [-1, 1] we compute a normalized transform
-		CGSize renderSize = _renderContext.size;
-		CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));
-		CGAffineTransform renderContextTransform = {renderSize.width/2, 0, 0, renderSize.height/2, renderSize.width/2, renderSize.height/2};
-		CGAffineTransform destinationTransform = {2/destinationSize.width, 0, 0, 2/destinationSize.height, -1, -1};
-		CGAffineTransform normalizedRenderTransform = CGAffineTransformConcat(CGAffineTransformConcat(renderContextTransform, _renderContext.renderTransform), destinationTransform);
-		_oglRenderer.renderTransform = normalizedRenderTransform;
-		
-		_renderContextDidChange = NO;
-	}
     CGFloat time = CMTimeGetSeconds(request.compositionTime);
-    [_oglRenderer renderPixelBuffer:dstPixels usingBackgroundSourceBuffer:backgroundSourceBuffer withInstruction:currentInstruction atTime:time];
-	
+    CMTime elapsed = CMTimeSubtract(request.compositionTime, request.videoCompositionInstruction.timeRange.start);
+    float tweenFactor = CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(request.videoCompositionInstruction.timeRange.duration);
+
+    CVPixelBufferRef prevBuffer = nil;
+    for(DVGOpenGLRenderer* renderer in currentInstruction.renderersStack){
+        if(prevBuffer){
+            CFRelease(prevBuffer);
+            prevBuffer = nil;
+        }
+        prevBuffer = dstPixels;
+        // Destination pixel buffer into which we render the output
+        dstPixels = [_renderContext newPixelBuffer];
+        // Recompute normalized render transform everytime the render context changes
+        if (_renderContextDidChange) {
+            // The renderTransform returned by the renderContext is in X: [0, w] and Y: [0, h] coordinate system
+            // But since in this sample we render using OpenGLES which has its coordinate system between [-1, 1] we compute a normalized transform
+            CGSize renderSize = _renderContext.size;
+            CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));
+            CGAffineTransform renderContextTransform = {renderSize.width/2, 0, 0, renderSize.height/2, renderSize.width/2, renderSize.height/2};
+            CGAffineTransform destinationTransform = {2/destinationSize.width, 0, 0, 2/destinationSize.height, -1, -1};
+            CGAffineTransform normalizedRenderTransform = CGAffineTransformConcat(CGAffineTransformConcat(renderContextTransform, _renderContext.renderTransform), destinationTransform);
+            renderer.renderTransform = normalizedRenderTransform;
+        }
+
+        
+        CVPixelBufferRef trackBuffer = nil;
+        DVGGLRotationMode trackOrientation = kDVGGLNoRotation;
+        if(renderer.effectTrackID != kCMPersistentTrackID_Invalid){
+            trackBuffer = [request sourceFrameByTrackID:renderer.effectTrackID];
+            trackOrientation = renderer.effectTrackOrientation;
+        }
+        [renderer renderIntoPixelBuffer:dstPixels
+                             prevBuffer:prevBuffer
+                           sourceBuffer:trackBuffer
+                           sourceOrient:trackOrientation
+                                 atTime:time withTween:tweenFactor];
+    }
+    if(prevBuffer){
+        CFRelease(prevBuffer);
+        prevBuffer = nil;
+    }
+    _renderContextDidChange = NO;
 	return dstPixels;
 }
 
-+ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGVideoInstructionScene*)animscene {
++ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene {
+    DVGKeyframedAnimationRenderer* kar = [[DVGKeyframedAnimationRenderer alloc] init];
+    kar.animationScene = animscene;
+    return [DVGStackableVideoCompositor createExportSessionWithAsset:asset andEffectsStack:@[kar]];
+}
+
++ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return nil;
@@ -169,8 +166,8 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    videoComposition.customVideoCompositorClass = [DVGKeyframedLayerCompositor class];
-    [DVGCustomVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andAnimationScene:animscene forAsset:asset];
+    videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
+    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset];
     
     if (videoComposition) {
         AVAssetExportSession* exportSession = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetHighestQuality];
@@ -184,7 +181,14 @@
     return nil;
 }
 
-+ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGVideoInstructionScene*)animscene
++ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene
+{
+    DVGKeyframedAnimationRenderer* kar = [[DVGKeyframedAnimationRenderer alloc] init];
+    kar.animationScene = animscene;
+    return [DVGStackableVideoCompositor createPlayerItemWithAsset:asset andEffectsStack:@[kar]];
+}
+
++ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack
 {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
@@ -199,17 +203,14 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    videoComposition.customVideoCompositorClass = [DVGKeyframedLayerCompositor class];
-    [DVGCustomVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andAnimationScene:animscene forAsset:asset];
+    videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
+    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset];
     
     if (videoComposition) {
         // Every videoComposition needs these properties to be set:
         videoComposition.frameDuration = CMTimeMake(1, 30); // 30 fps
         videoComposition.renderSize = videoSize;
     }
-    
-    //self.composition = composition;
-    //self.videoComposition = videoComposition;
     AVPlayerItem *playerItem = [AVPlayerItem playerItemWithAsset:composition];
     playerItem.videoComposition = videoComposition;
     return playerItem;
@@ -218,7 +219,7 @@
 
 + (BOOL)prepareComposition:(AVMutableComposition *)composition
         andVideoComposition:(AVMutableVideoComposition *)videoComposition
-          andAnimationScene:(DVGVideoInstructionScene*)animscene
+           andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack
                    forAsset:(AVAsset*)asset
 {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
@@ -242,11 +243,13 @@
         [compositionAudioTrack insertTimeRange:timeRangeInAsset ofTrack:audioTrack atTime:kCMTimeZero error:nil];
     }
     NSMutableArray *instructions = [NSMutableArray array];
-    DVGVideoCompositionInstruction *videoInstruction = [[DVGVideoCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
-                                                                                                              andAnimationScene:animscene
+    DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
                                                                                                                    forTimeRange:timeRangeInAsset];
-    videoInstruction.backgroundTrackID = compositionVideoTrack.trackID;
-    videoInstruction.backgroundTrackOrientation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    for(DVGOpenGLRenderer* renderer in effstack){
+        renderer.effectTrackID = compositionVideoTrack.trackID;
+        renderer.effectTrackOrientation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    }
+    videoInstruction.renderersStack = effstack;
     [instructions addObject:videoInstruction];
     
     videoComposition.instructions = instructions;

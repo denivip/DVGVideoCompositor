@@ -1,5 +1,5 @@
 #import "DVGOpenGLRenderer.h"
-#import "DVGVideoCompositionInstruction.h"
+#import "DVGStackableCompositionInstruction.h"
 
 GLint rpl_uniforms[NUM_UNIFORMS];
 
@@ -58,8 +58,14 @@ static const char kBasicFragmentShader[] = {
 
 - (void)dealloc
 {
+    [self releaseOglResources];
+}
+
+- (void)releaseOglResources
+{
     if (_videoTextureCache) {
         CFRelease(_videoTextureCache);
+        _videoTextureCache = nil;
     }
     if (_offscreenBufferHandle) {
         glDeleteFramebuffers(1, &_offscreenBufferHandle);
@@ -67,9 +73,11 @@ static const char kBasicFragmentShader[] = {
     }
 }
 
-- (void)renderPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer usingBackgroundSourceBuffer:(CVPixelBufferRef)backgroundPixelBuffer
-          withInstruction:(DVGVideoCompositionInstruction*)currentInstruction
-                   atTime:(CGFloat)time
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+                   prevBuffer:(CVPixelBufferRef)prevBuffer
+                 sourceBuffer:(CVPixelBufferRef)trackBuffer
+                 sourceOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor
 {
 	[self doesNotRecognizeSelector:_cmd];
 }
