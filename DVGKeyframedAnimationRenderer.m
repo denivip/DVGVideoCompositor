@@ -1,7 +1,4 @@
 #import "DVGKeyframedAnimationRenderer.h"
-#import "DVGStackableCompositionInstruction.h"
-#include <GLKit/GLKMath.h>
-
 #define kMaxLayersPerFrame 50
 
 @interface DVGKeyframedAnimationRenderer ()

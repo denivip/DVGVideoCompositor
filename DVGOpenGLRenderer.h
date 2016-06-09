@@ -5,6 +5,8 @@
 #import <GLKit/GLKitBase.h>
 #import <GLKit/GLKTextureLoader.h>
 #import <AVFoundation/AVFoundation.h>
+#include <GLKit/GLKMath.h>
+#import "math.h"
 
 enum
 {

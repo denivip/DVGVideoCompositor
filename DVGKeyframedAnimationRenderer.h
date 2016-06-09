@@ -1,7 +1,6 @@
 #import "DVGOpenGLRenderer.h"
-#import "DVGKeyframedAnimationScene.h"
 #import "DVGStackableCompositionInstruction.h"
-#import "math.h"
+#import "DVGKeyframedAnimationScene.h"
 
 @interface DVGKeyframedAnimationRenderer : DVGOpenGLRenderer
 @property DVGKeyframedAnimationScene* animationScene;

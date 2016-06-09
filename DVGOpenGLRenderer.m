@@ -30,11 +30,10 @@ static const char kBasicFragmentShader[] = {
 @interface DVGOpenGLRenderer ()
 
 - (void)setupOffscreenRenderContext;
-
 - (BOOL)loadShaders;
 - (BOOL)compileShader:(GLuint *)shader type:(GLenum)type source:(NSString *)source;
 - (BOOL)linkProgram:(GLuint)prog;
-- (BOOL)validateProgram:(GLuint)prog;
+//- (BOOL)validateProgram:(GLuint)prog;
 
 @end
 
@@ -140,7 +139,6 @@ bail:
 }
 
 #pragma mark -  OpenGL ES 2 shader compilation
-
 - (BOOL)loadShaders
 {
 	GLuint vertShader, fragShader;
@@ -169,10 +167,7 @@ bail:
 	// Attach fragment shader to rplProgram.
 	glAttachShader(_rplProgram, fragShader);
 
-
-	
 	// Bind attribute locations. This needs to be done prior to linking.
-	
 	glBindAttribLocation(_rplProgram, ATTRIB_VERTEX_RPL, "position");
 	glBindAttribLocation(_rplProgram, ATTRIB_TEXCOORD_RPL, "texCoord");
 		   
@@ -199,9 +194,9 @@ bail:
 	
 	// Get uniform locations.
 	rpl_uniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
-    rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
     rpl_uniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
-	
+    rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
+    
 	// Release vertex and fragment shaders.
 	if (vertShader) {
 		glDetachShader(_rplProgram, vertShader);
@@ -274,30 +269,29 @@ bail:
 	return YES;
 }
 
-#if defined(DEBUG)
+//#if defined(DEBUG)
+//- (BOOL)validateProgram:(GLuint)prog
+//{
+//	GLint logLength, status;
+//	
+//	glValidateProgram(prog);
+//	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLength);
+//	if (logLength > 0) {
+//		GLchar *log = (GLchar *)malloc(logLength);
+//		glGetProgramInfoLog(prog, logLength, &logLength, log);
+//		NSLog(@"Program validate log:\n%s", log);
+//		free(log);
+//	}
+//	
+//	glGetProgramiv(prog, GL_VALIDATE_STATUS, &status);
+//	if (status == 0) {
+//		return NO;
+//	}
+//	
+//	return YES;
+//}
+//#endif
 
-- (BOOL)validateProgram:(GLuint)prog
-{
-	GLint logLength, status;
-	
-	glValidateProgram(prog);
-	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLength);
-	if (logLength > 0) {
-		GLchar *log = (GLchar *)malloc(logLength);
-		glGetProgramInfoLog(prog, logLength, &logLength, log);
-		NSLog(@"Program validate log:\n%s", log);
-		free(log);
-	}
-	
-	glGetProgramiv(prog, GL_VALIDATE_STATUS, &status);
-	if (status == 0) {
-		return NO;
-	}
-	
-	return YES;
-}
-
-#endif
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)rotation andSize:(CGSize)videoSize
 {
     if((rotation) == kDVGGLRotateLeft || (rotation) == kDVGGLRotateRight || (rotation) == kDVGGLRotateRightFlipVertical || (rotation) == kDVGGLRotateRightFlipHorizontal){
