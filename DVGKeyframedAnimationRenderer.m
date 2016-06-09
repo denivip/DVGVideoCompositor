@@ -85,7 +85,7 @@
 			0.0,					   0.0,										0.0, 1.0
 		);
 		
-		glUniformMatrix4fv(rpl_uniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
+		glUniformMatrix4fv(self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
         
         glViewport(0, 0, (int)vport_w, (int)vport_h);
 		
@@ -112,8 +112,8 @@
         };
         
         GLfloat basecolortint[4] = {1,1,1,1};
-        glUniform4fv(rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
-        glUniform1i(rpl_uniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
+        glUniform4fv(self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
+        glUniform1i(self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
         
         glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
         glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
@@ -199,8 +199,8 @@
                 
                 // PMA needed!!!
                 GLfloat layercolortint[4] = {layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey]};
-                glUniform4fv(rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, layercolortint);
-                glUniform1i(rpl_uniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
+                glUniform4fv(self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, layercolortint);
+                glUniform1i(self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
                 
                 glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, layerVertices);
                 glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);

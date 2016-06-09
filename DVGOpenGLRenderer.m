@@ -1,8 +1,6 @@
 #import "DVGOpenGLRenderer.h"
 #import "DVGStackableCompositionInstruction.h"
 
-GLint rpl_uniforms[NUM_UNIFORMS];
-
 static const char kBasicVertexShader[] = {
     "attribute vec4 position; \n \
      attribute vec2 texCoord; \n \
@@ -45,7 +43,7 @@ static const char kBasicFragmentShader[] = {
     if(self) {
 		_currentContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
 		[EAGLContext setCurrentContext:_currentContext];
-		
+        self.rplUniforms = malloc(sizeof(GLint)*NUM_UNIFORMS_COUNT);
         [self setupOffscreenRenderContext];
         [self loadShaders];
         
@@ -57,6 +55,7 @@ static const char kBasicFragmentShader[] = {
 
 - (void)dealloc
 {
+    free(self.rplUniforms);
     [self releaseOglResources];
 }
 
@@ -193,9 +192,9 @@ bail:
 	}
 	
 	// Get uniform locations.
-	rpl_uniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
-    rpl_uniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
-    rpl_uniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
+	self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
+    self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
+    self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
     
 	// Release vertex and fragment shaders.
 	if (vertShader) {

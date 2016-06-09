@@ -15,7 +15,6 @@ enum
 	UNIFORM_RENDER_TRANSFORM_RPL,
    	NUM_UNIFORMS
 };
-extern GLint rpl_uniforms[NUM_UNIFORMS];
 
 enum
 {
@@ -34,7 +33,7 @@ typedef enum {
     kDVGGLRotateRightFlipHorizontal,
     kDVGGLRotate180
 } DVGGLRotationMode;
-
+static int NUM_UNIFORMS_COUNT = 100;
 @class DVGStackableCompositionInstruction;
 @interface DVGOpenGLRenderer : NSObject
 @property CMPersistentTrackID effectTrackID;
@@ -43,6 +42,7 @@ typedef enum {
 
 // opengl stuff
 @property GLuint rplProgram;
+@property GLint* rplUniforms;
 @property CGAffineTransform renderTransform;
 @property CVOpenGLESTextureCacheRef videoTextureCache;
 @property EAGLContext *currentContext;
