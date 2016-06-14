@@ -2,6 +2,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import "DVGStackableCompositionInstruction.h"
 #import "DVGKeyframedAnimationRenderer.h"
+#import "DVGVisualBlurRenderer.h"
 
 @interface DVGStackableVideoCompositor : NSObject <AVVideoCompositing>
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack;

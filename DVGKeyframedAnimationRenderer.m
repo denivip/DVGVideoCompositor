@@ -1,8 +1,8 @@
 #import "DVGKeyframedAnimationRenderer.h"
 #define kMaxLayersPerFrame 50
 
-static const char kBasicVertexShader[] = {
-    "attribute vec4 position; \n \
+static NSString* kBasicVertexShader =
+    @"attribute vec4 position; \n \
     attribute vec2 texCoord; \n \
     uniform mat4 renderTransform; \n \
     varying vec2 texCoordVarying; \n \
@@ -10,20 +10,17 @@ static const char kBasicVertexShader[] = {
     { \n \
     gl_Position = position * renderTransform; \n \
     texCoordVarying = texCoord; \n \
-    }"
-};
+    }";
 
-static const char kBasicFragmentShader[] = {
-    "varying highp vec2 texCoordVarying; \n \
+static NSString* kBasicFragmentShader =
+    @"varying highp vec2 texCoordVarying; \n \
     uniform highp vec4 rplColorTint; \n \
     uniform sampler2D rplSampler; \n \
     void main() \n \
     { \n \
     highp vec4 textColor = texture2D(rplSampler, texCoordVarying); \n \
     gl_FragColor = rplColorTint*textColor; \n \
-    }"
-    // gl_FragColor.rgba = texture2D(rplSampler, texCoordVarying).rgba;
-};
+    }";
 
 @interface DVGKeyframedAnimationRenderer ()
 @property NSMutableArray* objectsOglBuffers;

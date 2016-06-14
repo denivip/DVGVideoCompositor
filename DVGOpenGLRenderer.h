@@ -10,9 +10,9 @@
 
 enum
 {
-	UNIFORM_SHADER_SAMPLER_RPL,
-	UNIFORM_SHADER_COLORTINT_RPL,
 	UNIFORM_RENDER_TRANSFORM_RPL,
+    UNIFORM_SHADER_SAMPLER_RPL,
+	UNIFORM_SHADER_COLORTINT_RPL,
    	NUM_UNIFORMS
 };
 
@@ -49,8 +49,8 @@ static int NUM_UNIFORMS_COUNT = 100;
 - (void)releaseOglResources;
 - (void)prepareContextForRendering;
 - (void)releaseContextForRendering;
-- (BOOL)prepareVertexShader:(const char*)vshader
-         withFragmentShader:(const char*)fshader
+- (BOOL)prepareVertexShader:(NSString*)vertShaderSource
+         withFragmentShader:(NSString*)fragShaderSource
                 withAttribs:(NSArray*)attribPairs
                withUniforms:(NSArray*)uniformPairs;
 - (int)getUniform:(int)uniform;

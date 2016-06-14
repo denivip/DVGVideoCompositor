@@ -196,6 +196,10 @@
     }
     AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
     CGSize videoSize = [videoTrack naturalSize];
+    if(videoSize.width < 1 || videoSize.height < 1){
+        // wtf ??? ??? ??? ???
+        videoSize = CGSizeMake(1360,768);
+    }
     CGAffineTransform videoTransform = [videoTrack preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
     DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];

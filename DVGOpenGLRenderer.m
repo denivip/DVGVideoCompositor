@@ -70,11 +70,6 @@
     [EAGLContext setCurrentContext:nil];
 }
 
-- (void)prepareOglResources
-{
-    
-}
-
 - (void)prepareTransform:(CGAffineTransform)normalizedRenderTransform
 {
     self.rplRenderTransform = normalizedRenderTransform;
@@ -93,12 +88,18 @@
     self.oglResourcesPrepared = NO;
 }
 
+- (void)prepareOglResources
+{
+    // Nope
+}
+
 - (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
                  sourceBuffer:(CVPixelBufferRef)trackBuffer
                  sourceOrient:(DVGGLRotationMode)trackOrientation
                        atTime:(CGFloat)time withTween:(float)tweenFactor
 {
+    // Should not be called
 	[self doesNotRecognizeSelector:_cmd];
 }
 
@@ -120,6 +121,7 @@
 	glBindFramebuffer(GL_FRAMEBUFFER, _offscreenBufferHandle);
 }
 
+//=====================
 - (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer
 {
     if(!pixelBuffer){
@@ -163,24 +165,21 @@ bail:
     return self.rplUniforms[uniform];
 }
 
-- (BOOL)prepareVertexShader:(const char*)vshader withFragmentShader:(const char*)fshader withAttribs:(NSArray*)attribPairs withUniforms:(NSArray*)uniformPairs;
+- (BOOL)prepareVertexShader:(NSString*)vertShaderSource withFragmentShader:(NSString*)fragShaderSource withAttribs:(NSArray*)attribPairs withUniforms:(NSArray*)uniformPairs;
 {
 	GLuint vertShader, fragShader;
-	NSString *vertShaderSource, *fragShaderSource;
     self.rplProgramAttPairs = attribPairs;
     self.rplProgramUniPairs = uniformPairs;
 	// Create the shader program.
 	_rplProgram = glCreateProgram();
 	
 	// Create and compile the vertex shader.
-	vertShaderSource = [NSString stringWithCString:vshader encoding:NSUTF8StringEncoding];
 	if (![self compileShader:&vertShader type:GL_VERTEX_SHADER source:vertShaderSource]) {
 		NSLog(@"Failed to compile vertex shader");
 		return NO;
 	}
 	
 	// Create and compile Y fragment shader.
-	fragShaderSource = [NSString stringWithCString:fshader encoding:NSUTF8StringEncoding];
 	if (![self compileShader:&fragShader type:GL_FRAGMENT_SHADER source:fragShaderSource]) {
 		NSLog(@"Failed to compile Y fragment shader");
 		return NO;
