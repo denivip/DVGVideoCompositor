@@ -1,38 +1,20 @@
 #import "DVGOpenGLRenderer.h"
 #import "DVGStackableCompositionInstruction.h"
 
-static const char kBasicVertexShader[] = {
-    "attribute vec4 position; \n \
-     attribute vec2 texCoord; \n \
-	 uniform mat4 renderTransform; \n \
-     varying vec2 texCoordVarying; \n \
-     void main() \n \
-     { \n \
-        gl_Position = position * renderTransform; \n \
-        texCoordVarying = texCoord; \n \
-     }"
-};
-
-static const char kBasicFragmentShader[] = {
-    "varying highp vec2 texCoordVarying; \n \
-     uniform highp vec4 rplColorTint; \n \
-     uniform sampler2D rplSampler; \n \
-     void main() \n \
-     { \n \
-        highp vec4 textColor = texture2D(rplSampler, texCoordVarying); \n \
-		gl_FragColor = rplColorTint*textColor; \n \
-     }"
-    // gl_FragColor.rgba = texture2D(rplSampler, texCoordVarying).rgba;
-};
-
 @interface DVGOpenGLRenderer ()
+@property GLuint rplProgram;
+@property NSArray* rplProgramAttPairs;
+@property NSArray* rplProgramUniPairs;
+@property CVOpenGLESTextureCacheRef rplTextureCache;
+@property GLuint offscreenBufferHandle;
+@property GLint* rplUniforms;
+@property CGAffineTransform rplRenderTransform;
+@property BOOL oglResourcesPrepared;
 
 - (void)setupOffscreenRenderContext;
-- (BOOL)loadShaders;
 - (BOOL)compileShader:(GLuint *)shader type:(GLenum)type source:(NSString *)source;
 - (BOOL)linkProgram:(GLuint)prog;
 //- (BOOL)validateProgram:(GLuint)prog;
-
 @end
 
 @implementation DVGOpenGLRenderer
@@ -41,12 +23,10 @@ static const char kBasicFragmentShader[] = {
 {
     self = [super init];
     if(self) {
-		_currentContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
-		[EAGLContext setCurrentContext:_currentContext];
+		_rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+		[EAGLContext setCurrentContext:_rplContext];
         self.rplUniforms = malloc(sizeof(GLint)*NUM_UNIFORMS_COUNT);
         [self setupOffscreenRenderContext];
-        [self loadShaders];
-        
 		[EAGLContext setCurrentContext:nil];
     }
     
@@ -59,16 +39,58 @@ static const char kBasicFragmentShader[] = {
     [self releaseOglResources];
 }
 
+-(void)prepareContextForRendering
+{
+    [EAGLContext setCurrentContext:self.rplContext];
+    if(!self.oglResourcesPrepared){
+        self.oglResourcesPrepared = YES;
+        [self prepareOglResources];
+    }
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendEquation(GL_FUNC_ADD);
+    //glBlendFunc(GL_ONE, GL_ONE);
+    glUseProgram(self.rplProgram);
+    // Set the render transform
+    GLKMatrix4 renderTransform = GLKMatrix4Make(
+                                                self.rplRenderTransform.a, self.rplRenderTransform.b, self.rplRenderTransform.tx, 0.0,
+                                                self.rplRenderTransform.c, self.rplRenderTransform.d, self.rplRenderTransform.ty, 0.0,
+                                                0.0,					   0.0,										1.0, 0.0,
+                                                0.0,					   0.0,										0.0, 1.0
+                                                );
+    glUniformMatrix4fv(self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
+    glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
+}
+
+-(void)releaseContextForRendering
+{
+    // Periodic texture cache flush every frame
+    CVOpenGLESTextureCacheFlush(self.rplTextureCache, 0);
+    [EAGLContext setCurrentContext:nil];
+}
+
+- (void)prepareOglResources
+{
+    
+}
+
+- (void)prepareTransform:(CGAffineTransform)normalizedRenderTransform
+{
+    self.rplRenderTransform = normalizedRenderTransform;
+}
+
 - (void)releaseOglResources
 {
-    if (_videoTextureCache) {
-        CFRelease(_videoTextureCache);
-        _videoTextureCache = nil;
+    if (_rplTextureCache) {
+        CFRelease(_rplTextureCache);
+        _rplTextureCache = nil;
     }
     if (_offscreenBufferHandle) {
         glDeleteFramebuffers(1, &_offscreenBufferHandle);
         _offscreenBufferHandle = 0;
     }
+    self.oglResourcesPrepared = NO;
 }
 
 - (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
@@ -83,11 +105,11 @@ static const char kBasicFragmentShader[] = {
 - (void)setupOffscreenRenderContext
 {
 	//-- Create CVOpenGLESTextureCacheRef for optimal CVPixelBufferRef to GLES texture conversion.
-    if (_videoTextureCache) {
-        CFRelease(_videoTextureCache);
-        _videoTextureCache = NULL;
+    if (_rplTextureCache) {
+        CFRelease(_rplTextureCache);
+        _rplTextureCache = NULL;
     }
-    CVReturn err = CVOpenGLESTextureCacheCreate(kCFAllocatorDefault, NULL, _currentContext, NULL, &_videoTextureCache);
+    CVReturn err = CVOpenGLESTextureCacheCreate(kCFAllocatorDefault, NULL, _rplContext, NULL, &_rplTextureCache);
     if (err != noErr) {
         NSLog(@"Error at CVOpenGLESTextureCacheCreate %d", err);
     }
@@ -106,18 +128,18 @@ static const char kBasicFragmentShader[] = {
     CVOpenGLESTextureRef bgraTexture = NULL;
     CVReturn err;
     
-    if (!_videoTextureCache) {
+    if (!_rplTextureCache) {
         NSLog(@"No video texture cache");
         goto bail;
     }
     
     // Periodic texture cache flush every frame
-    CVOpenGLESTextureCacheFlush(_videoTextureCache, 0);
+    CVOpenGLESTextureCacheFlush(_rplTextureCache, 0);
     
     // CVOpenGLTextureCacheCreateTextureFromImage will create GL texture optimally from CVPixelBufferRef.
     // Y
     err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                       _videoTextureCache,
+                                                       _rplTextureCache,
                                                        pixelBuffer,
                                                        NULL,
                                                        GL_TEXTURE_2D,
@@ -137,24 +159,28 @@ bail:
     return bgraTexture;
 }
 
-#pragma mark -  OpenGL ES 2 shader compilation
-- (BOOL)loadShaders
+- (int)getUniform:(int)uniform {
+    return self.rplUniforms[uniform];
+}
+
+- (BOOL)prepareVertexShader:(const char*)vshader withFragmentShader:(const char*)fshader withAttribs:(NSArray*)attribPairs withUniforms:(NSArray*)uniformPairs;
 {
 	GLuint vertShader, fragShader;
 	NSString *vertShaderSource, *fragShaderSource;
-	
+    self.rplProgramAttPairs = attribPairs;
+    self.rplProgramUniPairs = uniformPairs;
 	// Create the shader program.
 	_rplProgram = glCreateProgram();
 	
 	// Create and compile the vertex shader.
-	vertShaderSource = [NSString stringWithCString:kBasicVertexShader encoding:NSUTF8StringEncoding];
+	vertShaderSource = [NSString stringWithCString:vshader encoding:NSUTF8StringEncoding];
 	if (![self compileShader:&vertShader type:GL_VERTEX_SHADER source:vertShaderSource]) {
 		NSLog(@"Failed to compile vertex shader");
 		return NO;
 	}
 	
 	// Create and compile Y fragment shader.
-	fragShaderSource = [NSString stringWithCString:kBasicFragmentShader encoding:NSUTF8StringEncoding];
+	fragShaderSource = [NSString stringWithCString:fshader encoding:NSUTF8StringEncoding];
 	if (![self compileShader:&fragShader type:GL_FRAGMENT_SHADER source:fragShaderSource]) {
 		NSLog(@"Failed to compile Y fragment shader");
 		return NO;
@@ -167,9 +193,12 @@ bail:
 	glAttachShader(_rplProgram, fragShader);
 
 	// Bind attribute locations. This needs to be done prior to linking.
-	glBindAttribLocation(_rplProgram, ATTRIB_VERTEX_RPL, "position");
-	glBindAttribLocation(_rplProgram, ATTRIB_TEXCOORD_RPL, "texCoord");
-		   
+	//glBindAttribLocation(_rplProgram, ATTRIB_VERTEX_RPL, "position");
+	//glBindAttribLocation(_rplProgram, ATTRIB_TEXCOORD_RPL, "texCoord");
+    for(NSArray* attpair in self.rplProgramAttPairs){
+        glBindAttribLocation(_rplProgram, [[attpair objectAtIndex:0] intValue], [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
+    }
+	   
 	// Link the program.
 	if (![self linkProgram:_rplProgram]) {
 		NSLog(@"Failed to link program: %d", _rplProgram);
@@ -192,9 +221,12 @@ bail:
 	}
 	
 	// Get uniform locations.
-	self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
-    self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
-    self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
+	//self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
+    //self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
+    //self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
+    for(NSArray* attpair in self.rplProgramUniPairs){
+        self.rplUniforms[[[attpair objectAtIndex:0] intValue]] = glGetUniformLocation(_rplProgram, [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
+    }
     
 	// Release vertex and fragment shaders.
 	if (vertShader) {

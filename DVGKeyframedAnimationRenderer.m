@@ -1,6 +1,30 @@
 #import "DVGKeyframedAnimationRenderer.h"
 #define kMaxLayersPerFrame 50
 
+static const char kBasicVertexShader[] = {
+    "attribute vec4 position; \n \
+    attribute vec2 texCoord; \n \
+    uniform mat4 renderTransform; \n \
+    varying vec2 texCoordVarying; \n \
+    void main() \n \
+    { \n \
+    gl_Position = position * renderTransform; \n \
+    texCoordVarying = texCoord; \n \
+    }"
+};
+
+static const char kBasicFragmentShader[] = {
+    "varying highp vec2 texCoordVarying; \n \
+    uniform highp vec4 rplColorTint; \n \
+    uniform sampler2D rplSampler; \n \
+    void main() \n \
+    { \n \
+    highp vec4 textColor = texture2D(rplSampler, texCoordVarying); \n \
+    gl_FragColor = rplColorTint*textColor; \n \
+    }"
+    // gl_FragColor.rgba = texture2D(rplSampler, texCoordVarying).rgba;
+};
+
 @interface DVGKeyframedAnimationRenderer ()
 @property NSMutableArray* objectsOglBuffers;
 @end
@@ -17,9 +41,18 @@
 
 -(void)prepareOglResources
 {
-    if(self.objectsOglBuffers != nil){
-        return;
-    }
+    [super prepareOglResources];
+    [self prepareVertexShader:kBasicVertexShader withFragmentShader:kBasicFragmentShader
+                  withAttribs:@[
+                                @[@(ATTRIB_VERTEX_RPL), @"position"],
+                                @[@(ATTRIB_TEXCOORD_RPL), @"texCoord"]
+                                ]
+                 withUniforms:@[
+                                @[@(UNIFORM_RENDER_TRANSFORM_RPL), @"renderTransform"],
+                                @[@(UNIFORM_SHADER_SAMPLER_RPL), @"rplSampler"],
+                                @[@(UNIFORM_SHADER_COLORTINT_RPL), @"rplColorTint"]
+                                ]
+     ];
     self.objectsOglBuffers = @[].mutableCopy;
     for(DVGKeyframedAnimationSceneObject* obj in self.animationScene.objects){
         CGImageRef imageRef=[obj.objectImage CGImage];
@@ -51,9 +84,7 @@
                  sourceOrient:(DVGGLRotationMode)trackOrientation
                    atTime:(CGFloat)time withTween:(float)tweenFactor
 {
-    // http://iphonedevelopment.blogspot.ru/2009/05/opengl-es-from-ground-up-part-6_25.html
-    [EAGLContext setCurrentContext:self.currentContext];
-    [self prepareOglResources];
+    [self prepareContextForRendering];
     if(prevBuffer != nil){
         trackBuffer = prevBuffer;
         trackOrientation = kDVGGLNoRotation;
@@ -61,32 +92,13 @@
     //CVOpenGLESTextureRef layersTextures[kMaxLayersPerFrame] = {0};
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[self.animationScene.objects count]);
     if (trackBuffer != NULL) {
-        glEnable(GL_TEXTURE_2D);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        //glBlendEquation(GL_FUNC_ADD);
-        //glBlendFunc(GL_ONE, GL_ONE);
         
         CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
-        glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
         // Attach the destination texture as a color attachment to the off screen frame buffer
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
         CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
         CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
-        
-		glUseProgram(self.rplProgram);
-		
-		// Set the render transform
-		GLKMatrix4 renderTransform = GLKMatrix4Make(
-			self.renderTransform.a, self.renderTransform.b, self.renderTransform.tx, 0.0,
-			self.renderTransform.c, self.renderTransform.d, self.renderTransform.ty, 0.0,
-			0.0,					   0.0,										1.0, 0.0,
-			0.0,					   0.0,										0.0, 1.0
-		);
-		
-		glUniformMatrix4fv(self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
-        
         glViewport(0, 0, (int)vport_w, (int)vport_h);
 		
         glActiveTexture(GL_TEXTURE0);
@@ -112,8 +124,8 @@
         };
         
         GLfloat basecolortint[4] = {1,1,1,1};
-        glUniform4fv(self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
-        glUniform1i(self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
+        glUniform4fv([self getUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
+        glUniform1i([self getUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
         
         glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
         glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
@@ -199,8 +211,8 @@
                 
                 // PMA needed!!!
                 GLfloat layercolortint[4] = {layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey],layerValues[kDVGVITimelineAlphaKey]};
-                glUniform4fv(self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL], 1, layercolortint);
-                glUniform1i(self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL], 0);
+                glUniform4fv([self getUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, layercolortint);
+                glUniform1i([self getUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
                 
                 glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, layerVertices);
                 glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
@@ -212,8 +224,6 @@
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             }
         }
-        
-		
         glFlush();
 		
 	bail:
@@ -222,10 +232,7 @@
 		//for(int i=0; i < layersCount; i++){
         //    CFRelease(layersTextures[i]);
         //}
-		// Periodic texture cache flush every frame
-		CVOpenGLESTextureCacheFlush(self.videoTextureCache, 0);
-		
-		[EAGLContext setCurrentContext:nil];
+        [self releaseContextForRendering];
     }
 }
 

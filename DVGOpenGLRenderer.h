@@ -34,19 +34,28 @@ typedef enum {
     kDVGGLRotate180
 } DVGGLRotationMode;
 static int NUM_UNIFORMS_COUNT = 100;
+
 @class DVGStackableCompositionInstruction;
 @interface DVGOpenGLRenderer : NSObject
+
+// effects stuff
 @property CMPersistentTrackID effectTrackID;
 @property DVGGLRotationMode effectTrackOrientation;
-- (void)releaseOglResources;
 
 // opengl stuff
-@property GLuint rplProgram;
-@property GLint* rplUniforms;
-@property CGAffineTransform renderTransform;
-@property CVOpenGLESTextureCacheRef videoTextureCache;
-@property EAGLContext *currentContext;
-@property GLuint offscreenBufferHandle;
+@property EAGLContext *rplContext;
+- (void)prepareTransform:(CGAffineTransform)transf;
+- (void)prepareOglResources;
+- (void)releaseOglResources;
+- (void)prepareContextForRendering;
+- (void)releaseContextForRendering;
+- (BOOL)prepareVertexShader:(const char*)vshader
+         withFragmentShader:(const char*)fshader
+                withAttribs:(NSArray*)attribPairs
+               withUniforms:(NSArray*)uniformPairs;
+- (int)getUniform:(int)uniform;
+
+// utility functions
 - (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 - (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
