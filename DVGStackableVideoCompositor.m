@@ -11,8 +11,8 @@
 	BOOL								_renderContextDidChange;
 	dispatch_queue_t					_renderingQueue;
 	dispatch_queue_t					_renderContextQueue;
-	AVVideoCompositionRenderContext*	_renderContext;
     CVPixelBufferRef					_previousBuffer;
+	AVVideoCompositionRenderContext*	_renderContext;
 }
 
 @end
@@ -38,14 +38,15 @@
 {
     return @{(NSString *)kCVPixelBufferPixelFormatTypeKey : @[@(kCVPixelFormatType_32BGRA)],
              (NSString *)kCVPixelBufferOpenGLCompatibilityKey : @YES};
-	//return @{ (NSString *)kCVPixelBufferPixelFormatTypeKey : [NSNumber numberWithUnsignedInt:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange],
-	//		  (NSString*)kCVPixelBufferOpenGLESCompatibilityKey : [NSNumber numberWithBool:YES]};
 }
 
 - (NSDictionary *)requiredPixelBufferAttributesForRenderContext
 {
     return @{(NSString *)kCVPixelBufferPixelFormatTypeKey : @[@(kCVPixelFormatType_32BGRA)],
-             (NSString *)kCVPixelBufferOpenGLCompatibilityKey : @YES};
+             (NSString *)kCVPixelBufferOpenGLCompatibilityKey : @YES
+             //(NSString *)kCVPixelBufferWidthKey: @(100),
+             //(NSString *)kCVPixelBufferHeightKey: @(100)
+             };
 }
 
 - (void)renderContextChanged:(AVVideoCompositionRenderContext *)newRenderContext
