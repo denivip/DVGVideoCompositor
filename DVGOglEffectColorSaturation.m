@@ -34,7 +34,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
      lowp vec4 textureColor = texture2D(inputImageTexture, textureCoordinate);
      lowp float luminance = dot(textureColor.rgb, luminanceWeighting);
      lowp vec3 greyScaleColor = vec3(luminance);
-     highp vec4 outputColor = textureColor;
+     lowp vec4 outputColor = textureColor;
      outputColor = vec4(mix(greyScaleColor, outputColor.rgb, saturationFactor), outputColor.w);
      outputColor = vec4((outputColor.rgb) + brightnessFactor, outputColor.w);
      outputColor = clamp(outputColor, 0.0, 1.0);
@@ -91,7 +91,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         trackOrientation = kDVGGLNoRotation;
     }
     
-    CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
+    CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
     CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
     // Attach the destination texture as a color attachment to the off screen frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
@@ -100,7 +100,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glViewport(0, 0, (int)vport_w, (int)vport_h);
     
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(CVOpenGLESTextureGetTarget(backgroundBGRATexture), CVOpenGLESTextureGetName(backgroundBGRATexture));
+    glBindTexture(CVOpenGLESTextureGetTarget(trckBGRATexture), CVOpenGLESTextureGetName(trckBGRATexture));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -121,16 +121,16 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         1.0f,  1.0f,
     };
     
-    glUniform1f([self getUniform:UNIFORM_COLORSAT_SAT], self.saturation);
-    GLfloat brightnessShift[3] = {self.brightness,self.brightness,self.brightness};
-    glUniform3fv([self getUniform:UNIFORM_COLORSAT_BRI], 1, brightnessShift);
-    glUniform1i([self getUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
-    
+    [self activateContextShader:1];
+    glUniform1i([self getActiveShaderUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
     glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
     glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
-    
     glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation]);
     glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
+    
+    glUniform1f([self getActiveShaderUniform:UNIFORM_COLORSAT_SAT], self.saturation);
+    GLfloat brightnessShift[3] = {self.brightness,self.brightness,self.brightness};
+    glUniform3fv([self getActiveShaderUniform:UNIFORM_COLORSAT_BRI], 1, brightnessShift);
     
     // Draw the background frame
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -139,7 +139,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glFlush();
     
 bail:
-    CFRelease(backgroundBGRATexture);
+    CFRelease(trckBGRATexture);
     CFRelease(destBGRATexture);
     [self releaseContextForRendering];
 }

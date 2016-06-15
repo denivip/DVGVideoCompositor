@@ -70,6 +70,7 @@ typedef enum {
 
 @property NSArray<DVGKeyframedAnimationSceneObject*>* objects;
 @property NSArray<DVGKeyframedAnimationTimeline*>* timelines;
+-(void)fetchKeyedValues:(CGFloat*)values atTime:(CGFloat)time;
 -(void)fetchKeyedValues:(CGFloat*)values atTime:(CGFloat)time forObject:(NSInteger)objectIndex;
 @end
 

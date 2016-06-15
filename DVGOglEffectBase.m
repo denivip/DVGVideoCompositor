@@ -1,15 +1,30 @@
 #import "DVGOglEffectBase.h"
 #import "DVGStackableCompositionInstruction.h"
 
+@implementation DVGOglEffectShader
+
+- (id)init
+{
+    self = [super init];
+    if(self) {
+        self.rplUniforms = malloc(sizeof(GLint)*MAX_UNIFORMS_COUNT);
+    }
+    return self;
+}
+
+- (void)dealloc
+{
+    free(self.rplUniforms);
+}
+@end
+
 @interface DVGOglEffectBase ()
-@property GLuint rplProgram;
-@property NSArray* rplProgramAttPairs;
-@property NSArray* rplProgramUniPairs;
+@property NSMutableArray<DVGOglEffectShader*>* shaders;
 @property CVOpenGLESTextureCacheRef rplTextureCache;
 @property GLuint offscreenBufferHandle;
-@property GLint* rplUniforms;
 @property CGAffineTransform rplRenderTransform;
 @property BOOL oglResourcesPrepared;
+@property int activeShader;
 
 - (void)setupOffscreenRenderContext;
 - (BOOL)compileShader:(GLuint *)shader type:(GLenum)type source:(NSString *)source;
@@ -25,8 +40,9 @@
     if(self) {
 		_rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
         self.effectRenderingUpscale = 1.0;
+        self.activeShader = 0;
 		[EAGLContext setCurrentContext:_rplContext];
-        self.rplUniforms = malloc(sizeof(GLint)*MAX_UNIFORMS_COUNT);
+        self.shaders = @[].mutableCopy;
         [self setupOffscreenRenderContext];
 		[EAGLContext setCurrentContext:nil];
     }
@@ -36,11 +52,10 @@
 
 - (void)dealloc
 {
-    free(self.rplUniforms);
     [self releaseOglResources];
 }
 
--(void)prepareContextForRendering
+- (void)prepareContextForRendering
 {
     [EAGLContext setCurrentContext:self.rplContext];
     if(!self.oglResourcesPrepared){
@@ -52,15 +67,7 @@
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     //glBlendEquation(GL_FUNC_ADD);
     //glBlendFunc(GL_ONE, GL_ONE);
-    glUseProgram(self.rplProgram);
-    // Set the render transform
-    GLKMatrix4 renderTransform = GLKMatrix4Make(
-                                                self.rplRenderTransform.a, self.rplRenderTransform.b, self.rplRenderTransform.tx, 0.0,
-                                                self.rplRenderTransform.c, self.rplRenderTransform.d, self.rplRenderTransform.ty, 0.0,
-                                                0.0,					   0.0,										1.0, 0.0,
-                                                0.0,					   0.0,										0.0, 1.0
-                                                );
-    glUniformMatrix4fv(self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
+
     glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
 }
 
@@ -123,46 +130,63 @@
 }
 
 //=====================
-- (int)getUniform:(int)uniform {
-    return self.rplUniforms[uniform];
+- (void)activateContextShader:(int)shaderid
+{
+    self.activeShader = shaderid - 1;
+    DVGOglEffectShader* shader = [self.shaders objectAtIndex:self.activeShader];
+    glUseProgram(shader.rplProgram);
+    // Set the render transform
+    GLKMatrix4 renderTransform = GLKMatrix4Make(
+                                                self.rplRenderTransform.a, self.rplRenderTransform.b, self.rplRenderTransform.tx, 0.0,
+                                                self.rplRenderTransform.c, self.rplRenderTransform.d, self.rplRenderTransform.ty, 0.0,
+                                                0.0,					   0.0,										1.0, 0.0,
+                                                0.0,					   0.0,										0.0, 1.0
+                                                );
+    glUniformMatrix4fv(shader.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL], 1, GL_FALSE, renderTransform.m);
 }
 
-- (BOOL)prepareVertexShader:(NSString*)vertShaderSource withFragmentShader:(NSString*)fragShaderSource withAttribs:(NSArray*)attribPairs withUniforms:(NSArray*)uniformPairs;
+- (int)getActiveShaderUniform:(int)uniform {
+    DVGOglEffectShader* shader = [self.shaders objectAtIndex:self.activeShader];
+    return shader.rplUniforms[uniform];
+}
+
+- (int)prepareVertexShader:(NSString*)vertShaderSource withFragmentShader:(NSString*)fragShaderSource withAttribs:(NSArray*)attribPairs withUniforms:(NSArray*)uniformPairs;
 {
 	GLuint vertShader, fragShader;
-    self.rplProgramAttPairs = attribPairs;
-    self.rplProgramUniPairs = uniformPairs;
+    DVGOglEffectShader* shader = [DVGOglEffectShader new];
+    shader.rplProgramAttPairs = attribPairs;
+    shader.rplProgramUniPairs = uniformPairs;
 	// Create the shader program.
-	_rplProgram = glCreateProgram();
+	shader.rplProgram = glCreateProgram();
 	
 	// Create and compile the vertex shader.
 	if (![self compileShader:&vertShader type:GL_VERTEX_SHADER source:vertShaderSource]) {
 		NSLog(@"Failed to compile vertex shader");
-		return NO;
+		return -1;
 	}
 	
 	// Create and compile Y fragment shader.
 	if (![self compileShader:&fragShader type:GL_FRAGMENT_SHADER source:fragShaderSource]) {
 		NSLog(@"Failed to compile Y fragment shader");
-		return NO;
+		return -1;
 	}
 	
 	// Attach vertex shader to rplProgram.
-	glAttachShader(_rplProgram, vertShader);
+	glAttachShader(shader.rplProgram, vertShader);
 	
 	// Attach fragment shader to rplProgram.
-	glAttachShader(_rplProgram, fragShader);
+	glAttachShader(shader.rplProgram, fragShader);
 
 	// Bind attribute locations. This needs to be done prior to linking.
 	//glBindAttribLocation(_rplProgram, ATTRIB_VERTEX_RPL, "position");
 	//glBindAttribLocation(_rplProgram, ATTRIB_TEXCOORD_RPL, "texCoord");
-    for(NSArray* attpair in self.rplProgramAttPairs){
-        glBindAttribLocation(_rplProgram, [[attpair objectAtIndex:0] intValue], [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
+    for(NSArray* attpair in shader.rplProgramAttPairs){
+        glBindAttribLocation(shader.rplProgram, [[attpair objectAtIndex:0] intValue], [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
     }
 	   
 	// Link the program.
-	if (![self linkProgram:_rplProgram]) {
-		NSLog(@"Failed to link program: %d", _rplProgram);
+	if (![self linkProgram:shader.rplProgram]) {
+		NSLog(@"Failed to link program: %d", shader.rplProgram);
 		
 		if (vertShader) {
 			glDeleteShader(vertShader);
@@ -173,33 +197,31 @@
 			fragShader = 0;
 		}
 
-		if (_rplProgram) {
-			glDeleteProgram(_rplProgram);
-			_rplProgram = 0;
+		if (shader.rplProgram) {
+			glDeleteProgram(shader.rplProgram);
+			shader.rplProgram = 0;
 		}
 		
-		return NO;
+		return -1;
 	}
 	
 	// Get uniform locations.
-	//self.rplUniforms[UNIFORM_SHADER_SAMPLER_RPL] = glGetUniformLocation(_rplProgram, "rplSampler");
-    //self.rplUniforms[UNIFORM_RENDER_TRANSFORM_RPL] = glGetUniformLocation(_rplProgram, "renderTransform");
-    //self.rplUniforms[UNIFORM_SHADER_COLORTINT_RPL] = glGetUniformLocation(_rplProgram, "rplColorTint");
-    for(NSArray* attpair in self.rplProgramUniPairs){
-        self.rplUniforms[[[attpair objectAtIndex:0] intValue]] = glGetUniformLocation(_rplProgram, [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
+    for(NSArray* attpair in shader.rplProgramUniPairs){
+        shader.rplUniforms[[[attpair objectAtIndex:0] intValue]] = glGetUniformLocation(shader.rplProgram, [[attpair objectAtIndex:1] cStringUsingEncoding:NSASCIIStringEncoding]);
     }
     
 	// Release vertex and fragment shaders.
 	if (vertShader) {
-		glDetachShader(_rplProgram, vertShader);
+		glDetachShader(shader.rplProgram, vertShader);
 		glDeleteShader(vertShader);
 	}
 	if (fragShader) {
-		glDetachShader(_rplProgram, fragShader);
+		glDetachShader(shader.rplProgram, fragShader);
 		glDeleteShader(fragShader);
 	}
-	
-    return YES;
+    [self.shaders addObject:shader];
+    int shaderid = (int)[self.shaders count];
+    return shaderid;
 }
 
 - (BOOL)compileShader:(GLuint *)shader type:(GLenum)type source:(NSString *)sourceString

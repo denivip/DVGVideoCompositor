@@ -150,7 +150,7 @@ enum
     NSString *currentGaussianBlurVertexShader = [[self class] vertexShaderForOptimizedBlurOfRadius:calculatedSampleRadius sigma:_blurRadiusInPixels];
     NSString *currentGaussianBlurFragmentShader = [[self class] fragmentShaderForOptimizedBlurOfRadius:calculatedSampleRadius sigma:_blurRadiusInPixels];
     
-    BOOL bRes = [self prepareVertexShader:currentGaussianBlurVertexShader withFragmentShader:currentGaussianBlurFragmentShader
+    int shaderIndex = [self prepareVertexShader:currentGaussianBlurVertexShader withFragmentShader:currentGaussianBlurFragmentShader
                   withAttribs:@[
                                 @[@(ATTRIB_VERTEX_RPL), @"position"],
                                 @[@(ATTRIB_TEXCOORD_RPL), @"inputTextureCoordinate"]
@@ -163,7 +163,7 @@ enum
                                 @[@(UNIFORM_BLUR_TEXELWEI), @"texelBlendingWeight"],
                                 ]
      ];
-    if(!bRes){
+    if(shaderIndex < 0){
         DDLogError(@"DVGOglEffectDirectionalBlur: prepareOglResources: shaders compilation failed: \n\n%@ \n\n%@", currentGaussianBlurVertexShader, currentGaussianBlurFragmentShader);
     }
 }
@@ -195,7 +195,7 @@ enum
         trackOrientation = kDVGGLNoRotation;
     }
     
-    CVOpenGLESTextureRef backgroundBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
+    CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
     CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
     // Attach the destination texture as a color attachment to the off screen frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
@@ -203,7 +203,7 @@ enum
 
     
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(CVOpenGLESTextureGetTarget(backgroundBGRATexture), CVOpenGLESTextureGetName(backgroundBGRATexture));
+    glBindTexture(CVOpenGLESTextureGetTarget(trckBGRATexture), CVOpenGLESTextureGetName(trckBGRATexture));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -224,24 +224,23 @@ enum
         1.0f,  1.0f,
     };
     
-    glUniform1i([self getUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
-    
+    [self activateContextShader:1];
+    glUniform1i([self getActiveShaderUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
     glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
     glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
-    
     glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation]);
     glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
     
     // Draw the background frame
-    glUniform1f([self getUniform:UNIFORM_BLUR_TEXELWO], texelWidthOffset);
-    glUniform1f([self getUniform:UNIFORM_BLUR_TEXELHO], texelHeightOffset);
-    glUniform1f([self getUniform:UNIFORM_BLUR_TEXELWEI], self.blurBlendingWeight);
+    glUniform1f([self getActiveShaderUniform:UNIFORM_BLUR_TEXELWO], texelWidthOffset);
+    glUniform1f([self getActiveShaderUniform:UNIFORM_BLUR_TEXELHO], texelHeightOffset);
+    glUniform1f([self getActiveShaderUniform:UNIFORM_BLUR_TEXELWEI], self.blurBlendingWeight);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glFlush();
     
 bail:
-    CFRelease(backgroundBGRATexture);
+    CFRelease(trckBGRATexture);
     CFRelease(destBGRATexture);
     [self releaseContextForRendering];
 }

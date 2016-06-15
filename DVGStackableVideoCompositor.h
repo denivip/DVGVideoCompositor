@@ -4,6 +4,7 @@
 #import "DVGOglEffectKeyframedAnimation.h"
 #import "DVGOglEffectDirectionalBlur.h"
 #import "DVGOglEffectColorSaturation.h"
+#import "DVGOglEffectAnimatedTrackFrameRemap.h"
 
 @interface DVGStackableVideoCompositor : NSObject <AVVideoCompositing>
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack;

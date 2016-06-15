@@ -104,13 +104,18 @@ CGFloat kDefaultValuesForKeys[kDVGVITimelineKeyLast] = {0,0,0,1,1,1,0};
     return self;
 }
 
+-(void)fetchKeyedValues:(CGFloat*)values atTime:(CGFloat)time
+{
+    [self fetchKeyedValues:values atTime:time forObject:-1];
+}
+
 -(void)fetchKeyedValues:(CGFloat*)values atTime:(CGFloat)timeOrigin forObject:(NSInteger)objectIndex
 {
     CGFloat time = timeOrigin*self.timeSpeed + self.timeShift;
     memcpy(values,kDefaultValuesForKeys,sizeof(CGFloat)*kDVGVITimelineKeyLast);
     for(int i=kDVGVITimelineUnknownKey+1; i<kDVGVITimelineKeyLast; i++){
         for(DVGKeyframedAnimationTimeline* tl in self.timelines){
-            if(tl.timeline_key == i && tl.sceneobject_index == objectIndex){
+            if(tl.timeline_key == i && (objectIndex<0 || tl.sceneobject_index == objectIndex)){
                 values[i] = [tl getValueForTime:time];
                 break;
             }

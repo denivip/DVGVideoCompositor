@@ -38,6 +38,14 @@ typedef enum {
     kDVGGLRotate180
 } DVGGLRotationMode;
 
+
+@interface DVGOglEffectShader : NSObject
+@property GLuint rplProgram;
+@property NSArray* rplProgramAttPairs;
+@property NSArray* rplProgramUniPairs;
+@property GLint* rplUniforms;
+@end
+
 @class DVGStackableCompositionInstruction;
 @interface DVGOglEffectBase : NSObject
 
@@ -52,12 +60,13 @@ typedef enum {
 - (void)prepareOglResources;
 - (void)releaseOglResources;
 - (void)prepareContextForRendering;
+- (void)activateContextShader:(int)shaderindex;
 - (void)releaseContextForRendering;
-- (BOOL)prepareVertexShader:(NSString*)vertShaderSource
+- (int)prepareVertexShader:(NSString*)vertShaderSource
          withFragmentShader:(NSString*)fragShaderSource
                 withAttribs:(NSArray*)attribPairs
                withUniforms:(NSArray*)uniformPairs;
-- (int)getUniform:(int)uniform;
+- (int)getActiveShaderUniform:(int)uniform;
 - (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
                  sourceBuffer:(CVPixelBufferRef)trackBuffer
