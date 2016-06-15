@@ -8,12 +8,16 @@
 #include <GLKit/GLKMath.h>
 #import "math.h"
 
+#define STRINGIZE(x) #x
+#define STRINGIZE2(x) STRINGIZE(x)
+#define SHADER_STRING(text) @ STRINGIZE2(text)
+
 enum
 {
-	UNIFORM_RENDER_TRANSFORM_RPL,
+	UNIFORM_RENDER_TRANSFORM_RPL = 100,
     UNIFORM_SHADER_SAMPLER_RPL,
 	UNIFORM_SHADER_COLORTINT_RPL,
-   	NUM_UNIFORMS
+   	MAX_UNIFORMS_COUNT
 };
 
 enum
@@ -33,14 +37,14 @@ typedef enum {
     kDVGGLRotateRightFlipHorizontal,
     kDVGGLRotate180
 } DVGGLRotationMode;
-static int NUM_UNIFORMS_COUNT = 100;
 
 @class DVGStackableCompositionInstruction;
-@interface DVGOpenGLRenderer : NSObject
+@interface DVGOglEffectBase : NSObject
 
 // effects stuff
 @property CMPersistentTrackID effectTrackID;
 @property DVGGLRotationMode effectTrackOrientation;
+@property CGFloat effectRenderingUpscale;
 
 // opengl stuff
 @property EAGLContext *rplContext;
@@ -54,14 +58,14 @@ static int NUM_UNIFORMS_COUNT = 100;
                 withAttribs:(NSArray*)attribPairs
                withUniforms:(NSArray*)uniformPairs;
 - (int)getUniform:(int)uniform;
-
-// utility functions
-- (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 - (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
                  sourceBuffer:(CVPixelBufferRef)trackBuffer
                  sourceOrient:(DVGGLRotationMode)trackOrientation
                        atTime:(CGFloat)time withTween:(float)tweenFactor;
+
+// utility functions
+- (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 + (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize;
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)orientation andSize:(CGSize)videoSize;
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;

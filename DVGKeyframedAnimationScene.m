@@ -1,4 +1,4 @@
-#import "DVGOpenGLRenderer.h"
+#import "DVGOglEffectBase.h"
 #import <Foundation/Foundation.h>
 #import "DVGKeyframedAnimationScene.h"
 

@@ -1,12 +1,13 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 #import "DVGStackableCompositionInstruction.h"
-#import "DVGKeyframedAnimationRenderer.h"
-#import "DVGVisualBlurRenderer.h"
+#import "DVGOglEffectKeyframedAnimation.h"
+#import "DVGOglEffectDirectionalBlur.h"
+#import "DVGOglEffectColorSaturation.h"
 
 @interface DVGStackableVideoCompositor : NSObject <AVVideoCompositing>
-+ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack;
-+ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack;
++ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack;
++ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack;
 
 // Convinience methods for Typomatic, etc
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;

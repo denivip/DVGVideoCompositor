@@ -1,32 +1,36 @@
-#import "DVGKeyframedAnimationRenderer.h"
+#import "DVGOglEffectKeyframedAnimation.h"
 #define kMaxLayersPerFrame 50
 
-static NSString* kBasicVertexShader =
-    @"attribute vec4 position; \n \
-    attribute vec2 texCoord; \n \
-    uniform mat4 renderTransform; \n \
-    varying vec2 texCoordVarying; \n \
-    void main() \n \
-    { \n \
-    gl_Position = position * renderTransform; \n \
-    texCoordVarying = texCoord; \n \
-    }";
+static NSString* kEffectVertexShader = SHADER_STRING
+(
+    attribute vec4 position;
+    attribute vec2 texCoord;
+    uniform mat4 renderTransform;
+    varying vec2 texCoordVarying;
+    void main()
+    {
+        gl_Position = position * renderTransform;
+        texCoordVarying = texCoord;
+    }
+);
 
-static NSString* kBasicFragmentShader =
-    @"varying highp vec2 texCoordVarying; \n \
-    uniform highp vec4 rplColorTint; \n \
-    uniform sampler2D rplSampler; \n \
-    void main() \n \
-    { \n \
-    highp vec4 textColor = texture2D(rplSampler, texCoordVarying); \n \
-    gl_FragColor = rplColorTint*textColor; \n \
-    }";
+static NSString* kEffectFragmentShader = SHADER_STRING
+(
+    varying highp vec2 texCoordVarying;
+    uniform highp vec4 rplColorTint;
+    uniform sampler2D rplSampler;
+    void main()
+    {
+        highp vec4 textColor = texture2D(rplSampler, texCoordVarying);
+        gl_FragColor = rplColorTint*textColor;
+    }
+);
 
-@interface DVGKeyframedAnimationRenderer ()
+@interface DVGOglEffectKeyframedAnimation ()
 @property NSMutableArray* objectsOglBuffers;
 @end
 
-@implementation DVGKeyframedAnimationRenderer
+@implementation DVGOglEffectKeyframedAnimation
 -(GLKTextureInfo*)fetchOGLTextureForObject:(NSInteger)objectIndex
 {
     id bf = [self.objectsOglBuffers objectAtIndex:objectIndex];
@@ -39,7 +43,7 @@ static NSString* kBasicFragmentShader =
 -(void)prepareOglResources
 {
     [super prepareOglResources];
-    [self prepareVertexShader:kBasicVertexShader withFragmentShader:kBasicFragmentShader
+    [self prepareVertexShader:kEffectVertexShader withFragmentShader:kEffectFragmentShader
                   withAttribs:@[
                                 @[@(ATTRIB_VERTEX_RPL), @"position"],
                                 @[@(ATTRIB_TEXCOORD_RPL), @"texCoord"]
@@ -53,7 +57,7 @@ static NSString* kBasicFragmentShader =
     self.objectsOglBuffers = @[].mutableCopy;
     for(DVGKeyframedAnimationSceneObject* obj in self.animationScene.objects){
         CGImageRef imageRef=[obj.objectImage CGImage];
-        GLKTextureInfo* bf = [DVGOpenGLRenderer createGLKTextureFromCGImage:imageRef];
+        GLKTextureInfo* bf = [DVGOglEffectBase createGLKTextureFromCGImage:imageRef];
         if(bf){
             [self.objectsOglBuffers addObject:bf];
         }else{
@@ -127,7 +131,7 @@ static NSString* kBasicFragmentShader =
         glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
         glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
         
-        glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOpenGLRenderer textureCoordinatesForRotation:trackOrientation]);
+        glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation]);
         glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
         
 		// Draw the background frame
@@ -214,7 +218,7 @@ static NSString* kBasicFragmentShader =
                 glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, layerVertices);
                 glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
                 
-                glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOpenGLRenderer textureCoordinatesForRotation:kDVGGLNoRotation]);
+                glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:kDVGGLNoRotation]);
                 glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
                 
                 // Draw the layer

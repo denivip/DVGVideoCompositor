@@ -1,7 +1,7 @@
-#import "DVGOpenGLRenderer.h"
+#import "DVGOglEffectBase.h"
 #import "DVGStackableCompositionInstruction.h"
 
-@interface DVGOpenGLRenderer ()
+@interface DVGOglEffectBase ()
 @property GLuint rplProgram;
 @property NSArray* rplProgramAttPairs;
 @property NSArray* rplProgramUniPairs;
@@ -17,15 +17,16 @@
 //- (BOOL)validateProgram:(GLuint)prog;
 @end
 
-@implementation DVGOpenGLRenderer
+@implementation DVGOglEffectBase
 
 - (id)init
 {
     self = [super init];
     if(self) {
 		_rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+        self.effectRenderingUpscale = 1.0;
 		[EAGLContext setCurrentContext:_rplContext];
-        self.rplUniforms = malloc(sizeof(GLint)*NUM_UNIFORMS_COUNT);
+        self.rplUniforms = malloc(sizeof(GLint)*MAX_UNIFORMS_COUNT);
         [self setupOffscreenRenderContext];
 		[EAGLContext setCurrentContext:nil];
     }
@@ -122,45 +123,6 @@
 }
 
 //=====================
-- (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer
-{
-    if(!pixelBuffer){
-        return nil;
-    }
-    CVOpenGLESTextureRef bgraTexture = NULL;
-    CVReturn err;
-    
-    if (!_rplTextureCache) {
-        NSLog(@"No video texture cache");
-        goto bail;
-    }
-    
-    // Periodic texture cache flush every frame
-    CVOpenGLESTextureCacheFlush(_rplTextureCache, 0);
-    
-    // CVOpenGLTextureCacheCreateTextureFromImage will create GL texture optimally from CVPixelBufferRef.
-    // Y
-    err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                       _rplTextureCache,
-                                                       pixelBuffer,
-                                                       NULL,
-                                                       GL_TEXTURE_2D,
-                                                       GL_RGBA,//GL_RED_EXT,
-                                                       (int)CVPixelBufferGetWidth(pixelBuffer),
-                                                       (int)CVPixelBufferGetHeight(pixelBuffer),
-                                                       GL_RGBA,//GL_BGRA,//GL_RED_EXT,
-                                                       GL_UNSIGNED_BYTE,
-                                                       0,
-                                                       &bgraTexture);
-    
-    if (!bgraTexture || err) {
-        NSLog(@"Error at creating texture using CVOpenGLESTextureCacheCreateTextureFromImage %d", err);
-    }
-    
-bail:
-    return bgraTexture;
-}
-
 - (int)getUniform:(int)uniform {
     return self.rplUniforms[uniform];
 }
@@ -299,28 +261,44 @@ bail:
 	return YES;
 }
 
-//#if defined(DEBUG)
-//- (BOOL)validateProgram:(GLuint)prog
-//{
-//	GLint logLength, status;
-//	
-//	glValidateProgram(prog);
-//	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLength);
-//	if (logLength > 0) {
-//		GLchar *log = (GLchar *)malloc(logLength);
-//		glGetProgramInfoLog(prog, logLength, &logLength, log);
-//		NSLog(@"Program validate log:\n%s", log);
-//		free(log);
-//	}
-//	
-//	glGetProgramiv(prog, GL_VALIDATE_STATUS, &status);
-//	if (status == 0) {
-//		return NO;
-//	}
-//	
-//	return YES;
-//}
-//#endif
+- (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer
+{
+    if(!pixelBuffer){
+        return nil;
+    }
+    CVOpenGLESTextureRef bgraTexture = NULL;
+    CVReturn err;
+    
+    if (!_rplTextureCache) {
+        NSLog(@"No video texture cache");
+        goto bail;
+    }
+    
+    // Periodic texture cache flush every frame
+    CVOpenGLESTextureCacheFlush(_rplTextureCache, 0);
+    
+    // CVOpenGLTextureCacheCreateTextureFromImage will create GL texture optimally from CVPixelBufferRef.
+    // Y
+    err = CVOpenGLESTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
+                                                       _rplTextureCache,
+                                                       pixelBuffer,
+                                                       NULL,
+                                                       GL_TEXTURE_2D,
+                                                       GL_RGBA,//GL_RED_EXT,
+                                                       (int)CVPixelBufferGetWidth(pixelBuffer),
+                                                       (int)CVPixelBufferGetHeight(pixelBuffer),
+                                                       GL_RGBA,//GL_BGRA,//GL_RED_EXT,
+                                                       GL_UNSIGNED_BYTE,
+                                                       0,
+                                                       &bgraTexture);
+    
+    if (!bgraTexture || err) {
+        NSLog(@"Error at creating texture using CVOpenGLESTextureCacheCreateTextureFromImage %d", err);
+    }
+    
+bail:
+    return bgraTexture;
+}
 
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)rotation andSize:(CGSize)videoSize
 {

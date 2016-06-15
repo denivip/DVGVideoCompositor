@@ -1,8 +1,8 @@
 #import "DVGStackableCompositionInstruction.h"
 
 #import "DVGStackableVideoCompositor.h"
-#import "DVGKeyframedAnimationRenderer.h"
-#import "DVGOpenGLRenderer.h"
+#import "DVGOglEffectKeyframedAnimation.h"
+#import "DVGOglEffectBase.h"
 #import <CoreVideo/CoreVideo.h>
 
 @interface DVGStackableVideoCompositor()
@@ -106,20 +106,34 @@
     float tweenFactor = CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(request.videoCompositionInstruction.timeRange.duration);
 
     CVPixelBufferRef prevBuffer = nil;
-    for(DVGOpenGLRenderer* renderer in currentInstruction.renderersStack){
+    for(DVGOglEffectBase* renderer in currentInstruction.renderersStack){
         if(prevBuffer){
             CFRelease(prevBuffer);
             prevBuffer = nil;
         }
         prevBuffer = dstPixels;
+        CGSize renderSize = _renderContext.size;
         // Destination pixel buffer into which we render the output
-        dstPixels = [_renderContext newPixelBuffer];
+        if(renderer.effectRenderingUpscale != 1.0f){
+            int videoWidth = renderSize.width*renderer.effectRenderingUpscale;
+            int videoHeight = renderSize.height*renderer.effectRenderingUpscale;
+            CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)[currentInstruction getPixelBufferPoolForWidth:videoWidth andHeight:videoHeight];
+            CVPixelBufferPoolCreatePixelBuffer(NULL, bufferPool, &dstPixels);
+            
+            //CVPixelBufferLockBaseAddress(dstPixels,0);
+            //UInt8 * baseAddress = CVPixelBufferGetBaseAddress(dstPixels);
+            ////memcpy(baseAddress, bgraData, bytesByRow * videoHeight);
+            //memset(baseAddress, 0, bytesByRow * videoHeight)
+            //CVPixelBufferUnlockBaseAddress(dstPixels,0);
+        }else{
+            dstPixels = [_renderContext newPixelBuffer];
+        }
+        CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));
+
         // Recompute normalized render transform everytime the render context changes
         if (_renderContextDidChange) {
             // The renderTransform returned by the renderContext is in X: [0, w] and Y: [0, h] coordinate system
             // But since in this sample we render using OpenGLES which has its coordinate system between [-1, 1] we compute a normalized transform
-            CGSize renderSize = _renderContext.size;
-            CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));
             CGAffineTransform renderContextTransform = {renderSize.width/2, 0, 0, renderSize.height/2, renderSize.width/2, renderSize.height/2};
             CGAffineTransform destinationTransform = {2/destinationSize.width, 0, 0, 2/destinationSize.height, -1, -1};
             CGAffineTransform normalizedRenderTransform = CGAffineTransformConcat(CGAffineTransformConcat(renderContextTransform, _renderContext.renderTransform), destinationTransform);
@@ -148,12 +162,12 @@
 }
 
 + (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene {
-    DVGKeyframedAnimationRenderer* kar = [[DVGKeyframedAnimationRenderer alloc] init];
+    DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
     return [DVGStackableVideoCompositor createExportSessionWithAsset:asset andEffectsStack:@[kar]];
 }
 
-+ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack {
++ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return nil;
@@ -162,8 +176,8 @@
     CGSize videoSize = [videoTrack naturalSize];
     CGAffineTransform videoTransform = [videoTrack preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
-    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
-    videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
+    DVGGLRotationMode inputRotation = [DVGOglEffectBase orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    videoSize = [DVGOglEffectBase landscapeSizeForOrientation:inputRotation andSize:videoSize];
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
@@ -184,12 +198,12 @@
 
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene
 {
-    DVGKeyframedAnimationRenderer* kar = [[DVGKeyframedAnimationRenderer alloc] init];
+    DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
     return [DVGStackableVideoCompositor createPlayerItemWithAsset:asset andEffectsStack:@[kar]];
 }
 
-+ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack
++ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
 {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
@@ -203,8 +217,8 @@
     }
     CGAffineTransform videoTransform = [videoTrack preferredTransform];
     AVMutableComposition *composition = [AVMutableComposition composition];
-    DVGGLRotationMode inputRotation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
-    videoSize = [DVGOpenGLRenderer landscapeSizeForOrientation:inputRotation andSize:videoSize];
+    DVGGLRotationMode inputRotation = [DVGOglEffectBase orientationForPrefferedTransform:videoTransform andSize:videoSize];
+    videoSize = [DVGOglEffectBase landscapeSizeForOrientation:inputRotation andSize:videoSize];
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
@@ -224,7 +238,7 @@
 
 + (BOOL)prepareComposition:(AVMutableComposition *)composition
         andVideoComposition:(AVMutableVideoComposition *)videoComposition
-           andEffectsStack:(NSArray<DVGOpenGLRenderer*>*)effstack
+           andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
                    forAsset:(AVAsset*)asset
 {
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
@@ -250,9 +264,9 @@
     NSMutableArray *instructions = [NSMutableArray array];
     DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
                                                                                                                    forTimeRange:timeRangeInAsset];
-    for(DVGOpenGLRenderer* renderer in effstack){
+    for(DVGOglEffectBase* renderer in effstack){
         renderer.effectTrackID = compositionVideoTrack.trackID;
-        renderer.effectTrackOrientation = [DVGOpenGLRenderer orientationForPrefferedTransform:videoTransform andSize:videoSize];
+        renderer.effectTrackOrientation = [DVGOglEffectBase orientationForPrefferedTransform:videoTransform andSize:videoSize];
     }
     videoInstruction.renderersStack = effstack;
     [instructions addObject:videoInstruction];

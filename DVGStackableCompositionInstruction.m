@@ -5,6 +5,7 @@
 {
 	self = [super init];
 	if (self) {
+        self.pools = @{}.mutableCopy;
 		_requiredSourceTrackIDs = sourceTrackIDs;
 		_passthroughTrackID = kCMPersistentTrackID_Invalid;
 		_timeRange = timeRange;
@@ -15,9 +16,37 @@
 	return self;
 }
 
+- (id)getPixelBufferPoolForWidth:(int)w andHeight:(int)h {
+    NSString* key = [NSString stringWithFormat:@"pixpool_%i_%i",w,h];
+    id pool = [self.pools objectForKey:key];
+    if(pool == nil){
+        CVPixelBufferPoolRef bufferPool = nil;
+        NSMutableDictionary* attributes;
+        attributes = [NSMutableDictionary dictionary];
+        [attributes setObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(NSString*)kCVPixelBufferPixelFormatTypeKey];
+        [attributes setObject:[NSNumber numberWithInt:w] forKey: (NSString*)kCVPixelBufferWidthKey];
+        [attributes setObject:[NSNumber numberWithInt:h] forKey: (NSString*)kCVPixelBufferHeightKey];
+        NSDictionary *IOSurfaceProperties = [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool:YES], @"IOSurfaceOpenGLESFBOCompatibility",[NSNumber numberWithBool:YES], @"IOSurfaceOpenGLESTextureCompatibility",nil];
+        [attributes setObject:IOSurfaceProperties forKey:(NSString*)kCVPixelBufferIOSurfacePropertiesKey];
+        CVPixelBufferPoolCreate(kCFAllocatorDefault, NULL, (__bridge CFDictionaryRef) attributes, &bufferPool);
+        pool = (__bridge id)(bufferPool);
+        [self.pools setObject:pool forKey:key];
+    }
+    return pool;
+}
+
 -(void)dealloc
 {
-    for(DVGOpenGLRenderer* renderer in self.renderersStack){
+    for (NSString* key in self.pools) {
+        id value = [self.pools objectForKey:key];
+        // do stuff
+        if([key containsString:@"pixpool_"]){
+            CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)(value);
+            CVPixelBufferPoolRelease(bufferPool);
+        }
+    }
+    self.pools = nil;
+    for(DVGOglEffectBase* renderer in self.renderersStack){
         [renderer releaseOglResources];
     }
 }

@@ -1,7 +1,7 @@
 #import <Foundation/Foundation.h>
-#import "DVGOpenGLRenderer.h"
+#import "DVGOglEffectBase.h"
 
-#import "DVGKeyframedAnimationRenderer.h"
+#import "DVGOglEffectKeyframedAnimation.h"
 
 @interface DVGStackableCompositionInstruction : NSObject <AVVideoCompositionInstruction>
 // AVVideoCompositionInstruction traits
@@ -10,8 +10,9 @@
 @property (nonatomic) BOOL enablePostProcessing;
 @property (nonatomic) BOOL containsTweening;
 @property (nonatomic) NSArray<NSValue *> *requiredSourceTrackIDs;
-@property (nonatomic, strong) NSArray<DVGOpenGLRenderer *> *renderersStack;
+@property (nonatomic, strong) NSArray<DVGOglEffectBase *> *renderersStack;
+@property (nonatomic) NSMutableDictionary* pools;
 
 - (id)initProcessingWithSourceTrackIDs:(NSArray*)sourceTrackIDs forTimeRange:(CMTimeRange)timeRange;
-
+- (id)getPixelBufferPoolForWidth:(int)w andHeight:(int)h;
 @end
