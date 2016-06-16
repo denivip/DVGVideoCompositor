@@ -79,11 +79,11 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     [super releaseOglResources];
 }
 
-- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
-                 sourceBuffer:(CVPixelBufferRef)trackBuffer
-                 sourceOrient:(DVGGLRotationMode)trackOrientation
-                   atTime:(CGFloat)time withTween:(float)tweenFactor
+                  trackBuffer:(CVPixelBufferRef)trackBuffer
+                  trackOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor
 {
     [self prepareContextForRendering];
     if(prevBuffer != nil){
@@ -92,11 +92,11 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     }
     
     CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
-    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
+    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destBuffer];
     // Attach the destination texture as a color attachment to the off screen frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
-    CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
-    CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
+    CGFloat vport_w = CVPixelBufferGetWidth(destBuffer);//CVPixelBufferGetWidthOfPlane(destBuffer, 0);// ios8 compatible way
+    CGFloat vport_h = CVPixelBufferGetHeight(destBuffer);//CVPixelBufferGetHeightOfPlane(destBuffer, 0);// ios8 compatible way
     glViewport(0, 0, (int)vport_w, (int)vport_h);
     
     glActiveTexture(GL_TEXTURE0);
@@ -139,8 +139,13 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glFlush();
     
 bail:
-    CFRelease(trckBGRATexture);
-    CFRelease(destBGRATexture);
+    if(trckBGRATexture){
+        CFRelease(trckBGRATexture);
+    }
+    if(destBGRATexture){
+        CFRelease(destBGRATexture);
+    }
+
     [self releaseContextForRendering];
 }
 

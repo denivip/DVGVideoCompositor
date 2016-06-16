@@ -170,7 +170,6 @@ enum
 
 -(void)releaseOglResources
 {
-
     [super releaseOglResources];
 }
 
@@ -180,14 +179,14 @@ enum
     texelWidthOffset = self.blurYScale * 1.0 / filterFrameSize.width;
 }
 
-- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
-                 sourceBuffer:(CVPixelBufferRef)trackBuffer
-                 sourceOrient:(DVGGLRotationMode)trackOrientation
-                   atTime:(CGFloat)time withTween:(float)tweenFactor
+                  trackBuffer:(CVPixelBufferRef)trackBuffer
+                  trackOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor
 {
-    CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);
-    CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);
+    CGFloat vport_w = CVPixelBufferGetWidth(destBuffer);
+    CGFloat vport_h = CVPixelBufferGetHeight(destBuffer);
     [self setupFilterForSize:CGSizeMake(vport_w, vport_h)];
     [self prepareContextForRendering];
     if(prevBuffer != nil){
@@ -196,7 +195,7 @@ enum
     }
     
     CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
-    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
+    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destBuffer];
     // Attach the destination texture as a color attachment to the off screen frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
     glViewport(0, 0, (int)vport_w, (int)vport_h);
@@ -208,6 +207,8 @@ enum
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         NSLog(@"Failed to make complete framebuffer object %x", glCheckFramebufferStatus(GL_FRAMEBUFFER));
@@ -240,8 +241,13 @@ enum
     glFlush();
     
 bail:
-    CFRelease(trckBGRATexture);
-    CFRelease(destBGRATexture);
+    if(trckBGRATexture){
+        CFRelease(trckBGRATexture);
+    }
+    if(destBGRATexture){
+        CFRelease(destBGRATexture);
+    }
+
     [self releaseContextForRendering];
 }
 

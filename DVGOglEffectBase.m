@@ -21,15 +21,13 @@
 @interface DVGOglEffectBase ()
 @property NSMutableArray<DVGOglEffectShader*>* shaders;
 @property CVOpenGLESTextureCacheRef rplTextureCache;
-@property GLuint offscreenBufferHandle;
 @property CGAffineTransform rplRenderTransform;
+@property GLuint offscreenBufferHandle;
 @property BOOL oglResourcesPrepared;
 @property int activeShader;
 
-- (void)setupOffscreenRenderContext;
 - (BOOL)compileShader:(GLuint *)shader type:(GLenum)type source:(NSString *)source;
 - (BOOL)linkProgram:(GLuint)prog;
-//- (BOOL)validateProgram:(GLuint)prog;
 @end
 
 @implementation DVGOglEffectBase
@@ -38,15 +36,13 @@
 {
     self = [super init];
     if(self) {
-		_rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+		self.rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+        self.effectTrackID = kCMPersistentTrackID_Invalid;
+        self.effectTrackOrientation = kDVGGLNoRotation;
         self.effectRenderingUpscale = 1.0;
-        self.activeShader = 0;
-		[EAGLContext setCurrentContext:_rplContext];
         self.shaders = @[].mutableCopy;
-        [self setupOffscreenRenderContext];
-		[EAGLContext setCurrentContext:nil];
+        self.activeShader = 0;
     }
-    
     return self;
 }
 
@@ -62,58 +58,26 @@
         self.oglResourcesPrepared = YES;
         [self prepareOglResources];
     }
+    glDisable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     //glBlendEquation(GL_FUNC_ADD);
     //glBlendFunc(GL_ONE, GL_ONE);
-
     glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
 }
 
 -(void)releaseContextForRendering
 {
+    glUseProgram(0);
     // Periodic texture cache flush every frame
     CVOpenGLESTextureCacheFlush(self.rplTextureCache, 0);
     [EAGLContext setCurrentContext:nil];
 }
 
-- (void)prepareTransform:(CGAffineTransform)normalizedRenderTransform
-{
-    self.rplRenderTransform = normalizedRenderTransform;
-}
-
-- (void)releaseOglResources
-{
-    if (_rplTextureCache) {
-        CFRelease(_rplTextureCache);
-        _rplTextureCache = nil;
-    }
-    if (_offscreenBufferHandle) {
-        glDeleteFramebuffers(1, &_offscreenBufferHandle);
-        _offscreenBufferHandle = 0;
-    }
-    self.oglResourcesPrepared = NO;
-}
-
 - (void)prepareOglResources
 {
-    // Nope
-}
-
-- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
-                   prevBuffer:(CVPixelBufferRef)prevBuffer
-                 sourceBuffer:(CVPixelBufferRef)trackBuffer
-                 sourceOrient:(DVGGLRotationMode)trackOrientation
-                       atTime:(CGFloat)time withTween:(float)tweenFactor
-{
-    // Should not be called
-	[self doesNotRecognizeSelector:_cmd];
-}
-
-- (void)setupOffscreenRenderContext
-{
-	//-- Create CVOpenGLESTextureCacheRef for optimal CVPixelBufferRef to GLES texture conversion.
+    //-- Create CVOpenGLESTextureCacheRef for optimal CVPixelBufferRef to GLES texture conversion.
     if (_rplTextureCache) {
         CFRelease(_rplTextureCache);
         _rplTextureCache = NULL;
@@ -122,11 +86,47 @@
     if (err != noErr) {
         NSLog(@"Error at CVOpenGLESTextureCacheCreate %d", err);
     }
-	
-	glDisable(GL_DEPTH_TEST);
-	
-	glGenFramebuffers(1, &_offscreenBufferHandle);
-	glBindFramebuffer(GL_FRAMEBUFFER, _offscreenBufferHandle);
+
+    glGenFramebuffers(1, &_offscreenBufferHandle);
+    //glBindFramebuffer(GL_FRAMEBUFFER, _offscreenBufferHandle);
+}
+
+- (void)releaseOglResources
+{
+    [EAGLContext setCurrentContext:self.rplContext];
+    glUseProgram(0);
+    for(DVGOglEffectShader* shader in self.shaders){
+        glDeleteProgram(shader.rplProgram);
+        shader.rplProgram = 0;
+    }
+    if (_rplTextureCache) {
+        // Periodic texture cache flush every frame
+        CVOpenGLESTextureCacheFlush(_rplTextureCache, 0);
+        CFRelease(_rplTextureCache);
+        _rplTextureCache = nil;
+    }
+    if (_offscreenBufferHandle) {
+        glDeleteFramebuffers(1, &_offscreenBufferHandle);
+        _offscreenBufferHandle = 0;
+    }
+    [EAGLContext setCurrentContext:nil];
+    self.rplContext = nil;
+    self.oglResourcesPrepared = NO;
+}
+
+- (void)prepareTransform:(CGAffineTransform)normalizedRenderTransform
+{
+    self.rplRenderTransform = normalizedRenderTransform;
+}
+
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destBuffer
+                   prevBuffer:(CVPixelBufferRef)prevBuffer
+                  trackBuffer:(CVPixelBufferRef)trackBuffer
+                  trackOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor
+{
+    // Should not be called
+	[self doesNotRecognizeSelector:_cmd];
 }
 
 //=====================
@@ -295,9 +295,6 @@
         NSLog(@"No video texture cache");
         goto bail;
     }
-    
-    // Periodic texture cache flush every frame
-    CVOpenGLESTextureCacheFlush(_rplTextureCache, 0);
     
     // CVOpenGLTextureCacheCreateTextureFromImage will create GL texture optimally from CVPixelBufferRef.
     // Y

@@ -18,7 +18,7 @@
 
 - (id)getPixelBufferPoolForWidth:(int)w andHeight:(int)h {
     NSString* key = [NSString stringWithFormat:@"pixpool_%i_%i",w,h];
-    id pool = [self.pools objectForKey:key];
+    NSValue* pool = [self.pools objectForKey:key];
     if(pool == nil){
         CVPixelBufferPoolRef bufferPool = nil;
         NSMutableDictionary* attributes;
@@ -29,10 +29,10 @@
         NSDictionary *IOSurfaceProperties = [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool:YES], @"IOSurfaceOpenGLESFBOCompatibility",[NSNumber numberWithBool:YES], @"IOSurfaceOpenGLESTextureCompatibility",nil];
         [attributes setObject:IOSurfaceProperties forKey:(NSString*)kCVPixelBufferIOSurfacePropertiesKey];
         CVPixelBufferPoolCreate(kCFAllocatorDefault, NULL, (__bridge CFDictionaryRef) attributes, &bufferPool);
-        pool = (__bridge id)(bufferPool);
+        pool = [NSValue valueWithPointer:bufferPool];
         [self.pools setObject:pool forKey:key];
     }
-    return pool;
+    return [pool pointerValue];
 }
 
 -(void)dealloc
@@ -41,7 +41,7 @@
         id value = [self.pools objectForKey:key];
         // do stuff
         if([key containsString:@"pixpool_"]){
-            CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)(value);
+            CVPixelBufferPoolRef bufferPool = [value pointerValue];
             CVPixelBufferPoolRelease(bufferPool);
         }
     }

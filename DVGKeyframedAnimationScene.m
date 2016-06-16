@@ -104,6 +104,11 @@ CGFloat kDefaultValuesForKeys[kDVGVITimelineKeyLast] = {0,0,0,1,1,1,0};
     return self;
 }
 
+-(void)dealloc {
+    self.objects = nil;
+    self.timelines = nil;
+}
+
 -(void)fetchKeyedValues:(CGFloat*)values atTime:(CGFloat)time
 {
     [self fetchKeyedValues:values atTime:time forObject:-1];

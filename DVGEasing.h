@@ -2,6 +2,8 @@
 #define DVGEASING_H
 
 #define DVGFloat double
+#define DVGRND(fmin, fmax) (fmin+(fmax-fmin)*((float)rand()/(float)RAND_MAX))
+#define DVGLERP(needle, fmin, fmax) (fmin+(fmax-fmin)*needle)
 
 #if defined __cplusplus
 extern "C" {

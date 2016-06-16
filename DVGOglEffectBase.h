@@ -67,10 +67,10 @@ typedef enum {
                 withAttribs:(NSArray*)attribPairs
                withUniforms:(NSArray*)uniformPairs;
 - (int)getActiveShaderUniform:(int)uniform;
-- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
-                 sourceBuffer:(CVPixelBufferRef)trackBuffer
-                 sourceOrient:(DVGGLRotationMode)trackOrientation
+                  trackBuffer:(CVPixelBufferRef)trackBuffer
+                  trackOrient:(DVGGLRotationMode)trackOrientation
                        atTime:(CGFloat)time withTween:(float)tweenFactor;
 
 // utility functions

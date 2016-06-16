@@ -95,19 +95,24 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     [super releaseOglResources];
 }
 
-- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destinationPixelBuffer
+- (void)renderIntoPixelBuffer:(CVPixelBufferRef)destBuffer
                    prevBuffer:(CVPixelBufferRef)prevBuffer
-                 sourceBuffer:(CVPixelBufferRef)trackBuffer
-                 sourceOrient:(DVGGLRotationMode)trackOrientation
-                   atTime:(CGFloat)time withTween:(float)tweenFactor
+                  trackBuffer:(CVPixelBufferRef)trackBuffer
+                  trackOrient:(DVGGLRotationMode)trackOrientation
+                       atTime:(CGFloat)time withTween:(float)tweenFactor
 {
     [self prepareContextForRendering];
+    if(trackBuffer == nil){
+        // Adjusting previous frame, not track
+        trackBuffer = prevBuffer;
+        trackOrientation = kDVGGLNoRotation;
+    }
     CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
-    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destinationPixelBuffer];
+    CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destBuffer];
     // Attach the destination texture as a color attachment to the off screen frame buffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
-    CGFloat vport_w = CVPixelBufferGetWidth(destinationPixelBuffer);//CVPixelBufferGetWidthOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
-    CGFloat vport_h = CVPixelBufferGetHeight(destinationPixelBuffer);//CVPixelBufferGetHeightOfPlane(destinationPixelBuffer, 0);// ios8 compatible way
+    CGFloat vport_w = CVPixelBufferGetWidth(destBuffer);//CVPixelBufferGetWidthOfPlane(destBuffer, 0);// ios8 compatible way
+    CGFloat vport_h = CVPixelBufferGetHeight(destBuffer);//CVPixelBufferGetHeightOfPlane(destBuffer, 0);// ios8 compatible way
     glViewport(0, 0, (int)vport_w, (int)vport_h);
     
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -220,9 +225,64 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glFlush();
     
 bail:
-    CFRelease(trckBGRATexture);
-    CFRelease(destBGRATexture);
+    if(trckBGRATexture){
+        CFRelease(trckBGRATexture);
+    }
+    if(destBGRATexture){
+        CFRelease(destBGRATexture);
+    }
+
     [self releaseContextForRendering];
 }
 
++(DVGKeyframedAnimationScene*)staticSceneWithScale:(NSArray*)scaleXY andOffset:(NSArray*)offsetXY andRotation:(CGFloat)rotation {
+    CGFloat pscale1x = [[scaleXY objectAtIndex:0] doubleValue];
+    CGFloat pscale1y = [[scaleXY objectAtIndex:1] doubleValue];
+    CGFloat poffset1x = [[offsetXY objectAtIndex:0] doubleValue];
+    CGFloat poffset1y = [[offsetXY objectAtIndex:1] doubleValue];
+    DVGKeyframedAnimationScene* scene = [[DVGKeyframedAnimationScene alloc] init];
+    DVGKeyframedAnimationTimeline* tlr = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineRotationKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:rotation easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlx = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineXPosKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:poffset1x easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tly = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineYPosKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:poffset1y easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlsx = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineXScaleKey objectIndex:0
+                                                                               keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:pscale1x easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlsy = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineYScaleKey objectIndex:0
+                                                                               keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:pscale1y easing:kDVGVITimelineInterpolationLinear]]];
+    scene.timelines = @[tlr, tlx, tly, tlsx, tlsy];
+    return scene;
+}
+
++(DVGKeyframedAnimationScene*)slideSceneWithScale:(NSArray*)scaleXYXY andOffset:(NSArray*)offsetXYXY andRotation:(NSArray*)rotations forTime:(CGFloat)d {
+    CGFloat pscale1x = [[[scaleXYXY objectAtIndex:0] objectAtIndex:0] doubleValue];
+    CGFloat pscale1y = [[[scaleXYXY objectAtIndex:0] objectAtIndex:1] doubleValue];
+    CGFloat pscale2x = [[[scaleXYXY objectAtIndex:1] objectAtIndex:0] doubleValue];
+    CGFloat pscale2y = [[[scaleXYXY objectAtIndex:1] objectAtIndex:1] doubleValue];
+    CGFloat poffset1x = [[[offsetXYXY objectAtIndex:0] objectAtIndex:0] doubleValue];
+    CGFloat poffset1y = [[[offsetXYXY objectAtIndex:0] objectAtIndex:1] doubleValue];
+    CGFloat poffset2x = [[[offsetXYXY objectAtIndex:1] objectAtIndex:0] doubleValue];
+    CGFloat poffset2y = [[[offsetXYXY objectAtIndex:1] objectAtIndex:1] doubleValue];
+    CGFloat r1 = [[rotations objectAtIndex:0] doubleValue];
+    CGFloat r2 = [[rotations objectAtIndex:1] doubleValue];
+    DVGKeyframedAnimationScene* scene = [[DVGKeyframedAnimationScene alloc] init];
+    DVGKeyframedAnimationTimeline* tlr = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineRotationKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:r1 easing:kDVGVITimelineInterpolationLinear],
+                                                                                          [DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:d value:r2 easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlx = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineXPosKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:poffset1x easing:kDVGVITimelineInterpolationLinear],
+                                                                                          [DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:d value:poffset2x easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tly = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineYPosKey objectIndex:0
+                                                                              keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:poffset1y easing:kDVGVITimelineInterpolationLinear],
+                                                                                          [DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:d value:poffset2y easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlsx = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineXScaleKey objectIndex:0
+                                                                               keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:pscale1x easing:kDVGVITimelineInterpolationLinear],
+                                                                                           [DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:d value:pscale2x easing:kDVGVITimelineInterpolationLinear]]];
+    DVGKeyframedAnimationTimeline* tlsy = [DVGKeyframedAnimationTimeline timelineWithKey:kDVGVITimelineYScaleKey objectIndex:0
+                                                                               keyFrames:@[[DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:0 value:pscale1y easing:kDVGVITimelineInterpolationLinear],
+                                                                                           [DVGKeyframedAnimationTimelineKeyframe keyframeWithTime:d value:pscale2y easing:kDVGVITimelineInterpolationLinear]]];
+    scene.timelines = @[tlr, tlx, tly, tlsx, tlsy];
+    return scene;
+}
 @end
