@@ -113,7 +113,8 @@
             int videoHeight = renderSize.height*renderer.effectRenderingUpscale;
             CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)[currentInstruction getPixelBufferPoolForWidth:videoWidth andHeight:videoHeight];
             CVPixelBufferPoolCreatePixelBuffer(NULL, bufferPool, &dstPixels);
-        }else{
+        }else
+        {
             dstPixels = [_renderContext newPixelBuffer];
         }
         CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));

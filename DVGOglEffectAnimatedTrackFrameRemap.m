@@ -118,8 +118,9 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    CVOpenGLESTextureRef prevBGRATexture;
     if(prevBuffer != nil){
-        CVOpenGLESTextureRef prevBGRATexture = [self bgraTextureForPixelBuffer:prevBuffer];
+        prevBGRATexture = [self bgraTextureForPixelBuffer:prevBuffer];
         [self activateContextShader:1];
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(CVOpenGLESTextureGetTarget(prevBGRATexture), CVOpenGLESTextureGetName(prevBGRATexture));
@@ -225,6 +226,9 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glFlush();
     
 bail:
+    if(prevBGRATexture){
+        CFRelease(prevBGRATexture);
+    }
     if(trckBGRATexture){
         CFRelease(trckBGRATexture);
     }
