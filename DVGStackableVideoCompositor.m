@@ -180,7 +180,6 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
     [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset
                                            withSize:videoSize withOrientation:inputRotation];
     
@@ -222,7 +221,6 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
     [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset
                                            withSize:videoSize withOrientation:inputRotation];
     
@@ -250,7 +248,7 @@
     }
     AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
     //CGSize videoSize = [videoTrack naturalSize];
-    CGAffineTransform videoTransform = [videoTrack preferredTransform];
+    //CGAffineTransform videoTransform = [videoTrack preferredTransform];
     CMTime videoDuration = [asset duration];
     AVMutableCompositionTrack *compositionVideoTrack;
     compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
@@ -265,20 +263,28 @@
         [compositionAudioTrack insertTimeRange:timeRangeInAsset ofTrack:audioTrack atTime:kCMTimeZero error:nil];
     }
     NSMutableArray *instructions = [NSMutableArray array];
-    DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
-                                                                                                                   forTimeRange:timeRangeInAsset];
-    int renderers = 0;
-    for(DVGOglEffectBase* renderer in effstack){
-        if(renderers == 0 && renderer.effectTrackID == kCMPersistentTrackID_Invalid)
-        {
-            renderer.effectTrackID = compositionVideoTrack.trackID;
+    if([effstack count]>0){
+        videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
+        DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
+                                                                                                                               forTimeRange:timeRangeInAsset];
+        int renderers = 0;
+        for(DVGOglEffectBase* renderer in effstack){
+            if(renderers == 0 && renderer.effectTrackID == kCMPersistentTrackID_Invalid)
+            {
+                renderer.effectTrackID = compositionVideoTrack.trackID;
+            }
+            renderer.effectTrackOrientation = orientation;
+            renderers++;
         }
-        renderer.effectTrackOrientation = orientation;
-        renderers++;
+        videoInstruction.renderersStack = effstack;
+        [instructions addObject:videoInstruction];
+    }else{
+        AVMutableVideoCompositionInstruction *passThroughInstruction = [AVMutableVideoCompositionInstruction videoCompositionInstruction];
+        passThroughInstruction.timeRange = timeRangeInAsset;
+        AVMutableVideoCompositionLayerInstruction *passThroughLayer = [AVMutableVideoCompositionLayerInstruction videoCompositionLayerInstructionWithAssetTrack:videoTrack];
+        passThroughInstruction.layerInstructions = [NSArray arrayWithObject:passThroughLayer];
+        [instructions addObject:passThroughInstruction];
     }
-    videoInstruction.renderersStack = effstack;
-    [instructions addObject:videoInstruction];
-    
     videoComposition.instructions = instructions;
     return YES;
 }
