@@ -104,7 +104,7 @@
     CGFloat time = CMTimeGetSeconds(request.compositionTime);
     CMTime elapsed = CMTimeSubtract(request.compositionTime, request.videoCompositionInstruction.timeRange.start);
     float tweenFactor = CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(request.videoCompositionInstruction.timeRange.duration);
-
+    BOOL isOkRendered = YES;
     for(DVGOglEffectBase* renderer in currentInstruction.renderersStack){
         CGSize renderSize = _renderContext.size;
         // Destination pixel buffer into which we render the output
@@ -133,6 +133,11 @@
         if(renderer.effectTrackID != kCMPersistentTrackID_Invalid){
             trackBuffer = [request sourceFrameByTrackID:renderer.effectTrackID];
             trackOrientation = renderer.effectTrackOrientation;
+            if(trackBuffer == nil){
+                isOkRendered = NO;
+                NSLog(@"No frame for track %i, time: %0.02f. Falling back to last Ok frame", renderer.effectTrackID, time);
+                break;
+            }
         }
         [renderer renderIntoPixelBuffer:dstPixels
                              prevBuffer:prevBuffer
@@ -147,6 +152,19 @@
     }
     // Do NOT releasing prevBuffer - it is == dstPixels, which will be freed on upper levels
     _renderContextDidChange = NO;
+    if(isOkRendered){
+        if(currentInstruction.lastOkRenderedPixels){
+            CVPixelBufferRelease(currentInstruction.lastOkRenderedPixels);
+        }
+        currentInstruction.lastOkRenderedPixels = dstPixels;
+        CVPixelBufferRetain(currentInstruction.lastOkRenderedPixels);
+    }else{
+        if(dstPixels){
+            CVPixelBufferRelease(dstPixels);
+        }
+        dstPixels = currentInstruction.lastOkRenderedPixels;
+        CVPixelBufferRetain(dstPixels);
+    }
 	return dstPixels;
 }
 
@@ -154,16 +172,15 @@
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
-    return [DVGStackableVideoCompositor createExportSessionWithAsset:asset andEffectsStack:@[kar]];
+    return [DVGStackableVideoCompositor createExportSessionWithAssets:@[asset] andEffectsStack:@[kar] forSize:CGSizeMake(0,0)];
 }
 
-+ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
++ (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack forSize:(CGSize)outsize
 {
-    return [self createExportSessionWithAsset:asset andEffectsStack:effstack forSize:CGSizeMake(0,0)];
-}
-
-+ (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack forSize:(CGSize)outsize
-{
+    if([assets count] == 0){
+        return nil;
+    }
+    AVAsset* asset = [assets objectAtIndex:0];
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return nil;
@@ -180,7 +197,8 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset
+    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack
+                                          forAssets:assets
                                            withSize:videoSize withOrientation:inputRotation];
     
     if (videoComposition) {
@@ -199,11 +217,15 @@
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
-    return [DVGStackableVideoCompositor createPlayerItemWithAsset:asset andEffectsStack:@[kar]];
+    return [DVGStackableVideoCompositor createPlayerItemWithAssets:@[asset] andEffectsStack:@[kar]];
 }
 
-+ (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
++ (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
 {
+    if([assets count] == 0){
+        return nil;
+    }
+    AVAsset* asset = [assets objectAtIndex:0];
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return nil;
@@ -221,7 +243,8 @@
     composition.naturalSize = videoSize;
     AVMutableVideoComposition *videoComposition = nil;
     videoComposition = [AVMutableVideoComposition videoComposition];
-    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack forAsset:asset
+    [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack
+                                          forAssets:assets
                                            withSize:videoSize withOrientation:inputRotation];
     
     if (videoComposition) {
@@ -237,22 +260,23 @@
 
 + (BOOL)prepareComposition:(AVMutableComposition *)composition
         andVideoComposition:(AVMutableVideoComposition *)videoComposition
-           andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
-                   forAsset:(AVAsset*)asset
+           andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack_raw
+                 forAssets:(NSArray<AVAsset*>*)assets
                    withSize:(CGSize)videoSize
                   withOrientation:(DVGGLRotationMode)orientation
 {
+    if([assets count] == 0){
+        return NO;
+    }
+    AVAsset* asset = [assets objectAtIndex:0];
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return NO;
     }
     AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
-    //CGSize videoSize = [videoTrack naturalSize];
-    //CGAffineTransform videoTransform = [videoTrack preferredTransform];
-    CMTime videoDuration = [asset duration];
     AVMutableCompositionTrack *compositionVideoTrack;
     compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
-    CMTimeRange timeRangeInAsset = CMTimeRangeMake(kCMTimeZero, videoDuration);
+    CMTimeRange timeRangeInAsset = CMTimeRangeMake(kCMTimeZero, [asset duration]);
     [compositionVideoTrack insertTimeRange:timeRangeInAsset ofTrack:videoTrack atTime:kCMTimeZero error:nil];
     
     NSArray* audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
@@ -263,16 +287,41 @@
         [compositionAudioTrack insertTimeRange:timeRangeInAsset ofTrack:audioTrack atTime:kCMTimeZero error:nil];
     }
     NSMutableArray *instructions = [NSMutableArray array];
+    NSArray *effstack = [effstack_raw filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id effect, NSDictionary *bindings) {
+        return [effect isKindOfClass:[DVGOglEffectBase class]];
+    }]];
+    NSMutableArray* compositionTracks = @[@(compositionVideoTrack.trackID)].mutableCopy;
+    if([assets count] > 1){
+        for(int ti = 1;ti<[assets count];ti++){
+            AVAsset* asset2 = [assets objectAtIndex:ti];
+            NSArray* videoTracks2 = [asset2 tracksWithMediaType:AVMediaTypeVideo];
+            if([videoTracks2 count] == 0){
+                continue;
+            }
+            AVAssetTrack* videoTrack2 = [videoTracks2 objectAtIndex:0];
+            AVMutableCompositionTrack *compositionVideoTrack2;
+            compositionVideoTrack2 = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+            CMTimeRange timeRangeInAsset2 = CMTimeRangeMake(kCMTimeZero, [asset2 duration]);
+            //NSLog(@"Adding track %i, time: %0.02f (base time %0.02f)", compositionVideoTrack2.trackID, CMTimeGetSeconds([asset2 duration]), CMTimeGetSeconds([asset duration]));
+            [compositionVideoTrack2 insertTimeRange:timeRangeInAsset2 ofTrack:videoTrack2 atTime:kCMTimeZero error:nil];
+            [compositionTracks addObject:@(compositionVideoTrack2.trackID)];
+        }
+    }
     if([effstack count]>0){
         videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
-        DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:@[@(compositionVideoTrack.trackID)]
+        DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:compositionTracks
                                                                                                                                forTimeRange:timeRangeInAsset];
         int renderers = 0;
         for(DVGOglEffectBase* renderer in effstack){
-            if(renderers == 0 && renderer.effectTrackID == kCMPersistentTrackID_Invalid)
+            NSInteger trackIdx = renderer.effectTrackIndex;
+            if(renderers == 0 && trackIdx == kCMPersistentTrackID_Invalid)
             {
-                renderer.effectTrackID = compositionVideoTrack.trackID;
+                trackIdx = 1;
             }
+            if(trackIdx <= 0 || trackIdx-1 > [compositionTracks count]){
+                trackIdx = 0;
+            }
+            renderer.effectTrackID = (trackIdx>0)?[[compositionTracks objectAtIndex:trackIdx-1] intValue]:kCMPersistentTrackID_Invalid;
             renderer.effectTrackOrientation = orientation;
             renderers++;
         }

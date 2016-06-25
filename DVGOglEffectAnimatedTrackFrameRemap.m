@@ -118,7 +118,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    CVOpenGLESTextureRef prevBGRATexture;
+    CVOpenGLESTextureRef prevBGRATexture = nil;
     if(prevBuffer != nil){
         prevBGRATexture = [self bgraTextureForPixelBuffer:prevBuffer];
         [self activateContextShader:1];

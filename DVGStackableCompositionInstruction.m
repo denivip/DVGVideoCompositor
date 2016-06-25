@@ -49,5 +49,8 @@
     for(DVGOglEffectBase* renderer in self.renderersStack){
         [renderer releaseOglResources];
     }
+    if(self.lastOkRenderedPixels){
+        CVPixelBufferRelease(self.lastOkRenderedPixels);
+    }
 }
 @end

@@ -24,6 +24,7 @@ enum
 {
 	ATTRIB_VERTEX_RPL,
 	ATTRIB_TEXCOORD_RPL,
+    ATTRIB_TEXCOORD2_RPL,
    	NUM_ATTRIBUTES
 };
 
@@ -38,6 +39,10 @@ typedef enum {
     kDVGGLRotate180
 } DVGGLRotationMode;
 
+typedef enum {
+    DVGGLBlendNormal,
+    DVGGLBlendAdd
+} DVGGLBlendMode;
 
 @interface DVGOglEffectShader : NSObject
 @property GLuint rplProgram;
@@ -50,11 +55,13 @@ typedef enum {
 @interface DVGOglEffectBase : NSObject
 
 // effects stuff
-@property CMPersistentTrackID effectTrackID;
-@property DVGGLRotationMode effectTrackOrientation;
+@property NSInteger effectTrackIndex;
 @property CGFloat effectRenderingUpscale;
+@property DVGGLBlendMode effectRenderingBlendMode;
 
 // opengl stuff
+@property DVGGLRotationMode effectTrackOrientation;
+@property CMPersistentTrackID effectTrackID;
 @property EAGLContext *rplContext;
 - (void)prepareTransform:(CGAffineTransform)transf;
 - (void)prepareOglResources;
@@ -80,5 +87,5 @@ typedef enum {
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;
 + (GLKTextureInfo*)createGLKTextureFromCGImage:(CGImageRef)image;
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image;
-
++ (GLKMatrix3)CGAffineTransformToGLKMatrix3:(CGAffineTransform)affineTransform;
 @end

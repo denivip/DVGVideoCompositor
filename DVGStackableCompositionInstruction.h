@@ -12,6 +12,7 @@
 @property (nonatomic) NSArray<NSValue *> *requiredSourceTrackIDs;
 @property (nonatomic, strong) NSArray<DVGOglEffectBase *> *renderersStack;
 @property (nonatomic) NSMutableDictionary* pools;
+@property (nonatomic) CVPixelBufferRef lastOkRenderedPixels;
 
 - (id)initProcessingWithSourceTrackIDs:(NSArray*)sourceTrackIDs forTimeRange:(CMTimeRange)timeRange;
 - (id)getPixelBufferPoolForWidth:(int)w andHeight:(int)h;

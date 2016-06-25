@@ -38,6 +38,8 @@
     if(self) {
 		self.rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
         self.effectTrackID = kCMPersistentTrackID_Invalid;
+        self.effectTrackIndex = kCMPersistentTrackID_Invalid;
+        self.effectRenderingBlendMode = DVGGLBlendNormal;
         self.effectTrackOrientation = kDVGGLNoRotation;
         self.effectRenderingUpscale = 1.0;
         self.shaders = @[].mutableCopy;
@@ -61,9 +63,13 @@
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    //glBlendEquation(GL_FUNC_ADD);
-    //glBlendFunc(GL_ONE, GL_ONE);
+    if(self.effectRenderingBlendMode == DVGGLBlendAdd){
+        glBlendEquation(GL_FUNC_ADD);
+        //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_ONE, GL_ONE);
+    }else{
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, self.offscreenBufferHandle);
 }
 
@@ -459,5 +465,12 @@ bail:
     CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
     
     return pixelBuffer;
+}
+
++ (GLKMatrix3)CGAffineTransformToGLKMatrix3:(CGAffineTransform)affineTransform
+{
+    return GLKMatrix3Make(  affineTransform.a,  affineTransform.b,  0,
+                          affineTransform.c,  affineTransform.d,  0,
+                          affineTransform.tx, affineTransform.ty, 1 );
 }
 @end

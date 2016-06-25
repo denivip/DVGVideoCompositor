@@ -1,6 +1,43 @@
 #import "DVGOglEffectKeyframedAnimation.h"
 #define kMaxLayersPerFrame 50
 
+enum
+{
+    UNIFORM_KEYFA_SAMPLER2_RPL
+};
+
+static NSString* kEffect2VertexShader = SHADER_STRING
+(
+ attribute vec4 position;
+ attribute vec2 texCoord;
+ attribute vec2 texCoord2;
+
+ uniform mat4 renderTransform;
+ varying vec2 texCoordVarying1;
+ varying vec2 texCoordVarying2;
+ void main()
+ {
+     gl_Position = position * renderTransform;
+     texCoordVarying1 = texCoord;
+     texCoordVarying2 = texCoord2;
+ }
+ );
+
+static NSString* kEffect2FragmentShader = SHADER_STRING
+(
+ uniform highp vec4 rplColorTint;
+ varying highp vec2 texCoordVarying1;
+ varying highp vec2 texCoordVarying2;
+ uniform sampler2D rplSampler;
+ uniform sampler2D rplSampler2;
+ void main()
+ {
+     highp vec4 textColor1 = texture2D(rplSampler, texCoordVarying1);
+     highp vec4 textColor2 = texture2D(rplSampler2, texCoordVarying2);
+     gl_FragColor = rplColorTint*textColor1*textColor2;
+ }
+ );
+
 static NSString* kEffectVertexShader = SHADER_STRING
 (
     attribute vec4 position;
@@ -54,6 +91,19 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                                 @[@(UNIFORM_SHADER_COLORTINT_RPL), @"rplColorTint"]
                                 ]
      ];
+    [self prepareVertexShader:kEffect2VertexShader withFragmentShader:kEffect2FragmentShader
+                  withAttribs:@[
+                                @[@(ATTRIB_VERTEX_RPL), @"position"],
+                                @[@(ATTRIB_TEXCOORD_RPL), @"texCoord"],
+                                @[@(ATTRIB_TEXCOORD2_RPL), @"texCoord2"]
+                                ]
+                 withUniforms:@[
+                                @[@(UNIFORM_RENDER_TRANSFORM_RPL), @"renderTransform"],
+                                @[@(UNIFORM_SHADER_SAMPLER_RPL), @"rplSampler"],
+                                @[@(UNIFORM_KEYFA_SAMPLER2_RPL), @"rplSampler2"],
+                                @[@(UNIFORM_SHADER_COLORTINT_RPL), @"rplColorTint"]
+                                ]
+     ];
     self.objectsOglBuffers = @[].mutableCopy;
     for(DVGKeyframedAnimationSceneObject* obj in self.animationScene.objects){
         CGImageRef imageRef=[obj.objectImage CGImage];
@@ -86,6 +136,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                        atTime:(CGFloat)time withTween:(float)tweenFactor
 {
     [self prepareContextForRendering];
+    CVPixelBufferRef trackBufferOriginal = trackBuffer;
     if(prevBuffer != nil){
         trackBuffer = prevBuffer;
         trackOrientation = kDVGGLNoRotation;
@@ -93,9 +144,12 @@ static NSString* kEffectFragmentShader = SHADER_STRING
     //CVOpenGLESTextureRef layersTextures[kMaxLayersPerFrame] = {0};
     NSInteger layersCount = MIN(kMaxLayersPerFrame,[self.animationScene.objects count]);
     if (trackBuffer != NULL) {
-        
         CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destBuffer];
+        CVOpenGLESTextureRef trcoBGRATexture = nil;
+        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture){
+            trcoBGRATexture = [self bgraTextureForPixelBuffer:trackBufferOriginal];
+        }
         // Attach the destination texture as a color attachment to the off screen frame buffer
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CVOpenGLESTextureGetTarget(destBGRATexture), CVOpenGLESTextureGetName(destBGRATexture), 0);
         CGFloat vport_w = CVPixelBufferGetWidth(destBuffer);//CVPixelBufferGetWidthOfPlane(destBuffer, 0);// ios8 compatible way
@@ -116,27 +170,41 @@ static NSString* kEffectFragmentShader = SHADER_STRING
 		
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-        
-        static const GLfloat backgroundVertices[] = {
-            -1.0f, -1.0f,
-            1.0f, -1.0f,
-            -1.0f,  1.0f,
-            1.0f,  1.0f,
-        };
-        
+
         [self activateContextShader:1];
-        glUniform1i([self getActiveShaderUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
-        glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
-        glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
-        glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation]);
-        glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
+        if(self.objectsRenderingMode != kDVGOEKA_trackAsTexture || prevBuffer != nil){
+            static const GLfloat backgroundVertices[] = {
+                -1.0f, -1.0f,
+                1.0f, -1.0f,
+                -1.0f,  1.0f,
+                1.0f,  1.0f,
+            };
+            
+            glUniform1i([self getActiveShaderUniform:UNIFORM_SHADER_SAMPLER_RPL], 0);
+            glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, backgroundVertices);
+            glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
+            glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation]);
+            glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
+            
+            GLfloat basecolortint[4] = {1,1,1,1};
+            glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
+            
+            // Draw the background frame
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
         
-        GLfloat basecolortint[4] = {1,1,1,1};
-        glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
-        
-		// Draw the background frame
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        
+        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture){
+            if(trcoBGRATexture){
+                [self activateContextShader:2];
+                glUniform1i([self getActiveShaderUniform:UNIFORM_KEYFA_SAMPLER2_RPL], 1);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(CVOpenGLESTextureGetTarget(trcoBGRATexture), CVOpenGLESTextureGetName(trcoBGRATexture));
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            }
+        }
         for(int i=0; i < layersCount; i++){
             //CVPixelBufferRef bf = [currentInstruction.animationScene fetchOGLBufferForObject:i];
             //CVOpenGLESTextureRef layerBGRATexture = [self bgraTextureForPixelBuffer:bf];
@@ -205,9 +273,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                     p4.x, p4.y
                 };
                 
-                //layersTextures[i] = layerBGRATexture;
                 glActiveTexture(GL_TEXTURE0);
-                //glBindTexture(CVOpenGLESTextureGetTarget(layerBGRATexture), CVOpenGLESTextureGetName(layerBGRATexture));
                 glBindTexture(layerBGRATexture.target, layerBGRATexture.name);
                 
                 // PMA needed!!!
@@ -218,8 +284,38 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 glVertexAttribPointer(ATTRIB_VERTEX_RPL, 2, GL_FLOAT, 0, 0, layerVertices);
                 glEnableVertexAttribArray(ATTRIB_VERTEX_RPL);
                 
-                glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, [DVGOglEffectBase textureCoordinatesForRotation:kDVGGLNoRotation]);
+                const GLfloat *textureCoords = [DVGOglEffectBase textureCoordinatesForRotation:kDVGGLNoRotation];
+                glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, textureCoords);
                 glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
+                
+                if(trcoBGRATexture && self.objectsRenderingMode == kDVGOEKA_trackAsTexture){
+                    GLfloat const* textureCoords2 = [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation];
+                    
+                    // reverting tranforms to make texture stay in place in screen space
+                    CGPoint tp1 = CGPointMake(textureCoords2[0]-0.5, textureCoords2[1]-0.5);
+                    CGPoint tp2 = CGPointMake(textureCoords2[2]-0.5, textureCoords2[3]-0.5);
+                    CGPoint tp3 = CGPointMake(textureCoords2[4]-0.5, textureCoords2[5]-0.5);
+                    CGPoint tp4 = CGPointMake(textureCoords2[6]-0.5, textureCoords2[7]-0.5);
+
+                    CGFloat trco_h = CVPixelBufferGetHeight(trackBufferOriginal);
+                    //CGFloat trco_w = CVPixelBufferGetHeight(trackBufferOriginal);
+                    CGAffineTransform modelMatrixI = CGAffineTransformIdentity;
+                    modelMatrixI = CGAffineTransformTranslate(modelMatrixI, layerValues[kDVGVITimelineXPosKey]*0.5, layerValues[kDVGVITimelineYPosKey] * 0.5);
+                    modelMatrixI = CGAffineTransformScale(modelMatrixI, 1.0, layerObj.objectImage.size.height/trco_h);
+                    tp1 = CGPointApplyAffineTransform(tp1, modelMatrixI);
+                    tp2 = CGPointApplyAffineTransform(tp2, modelMatrixI);
+                    tp3 = CGPointApplyAffineTransform(tp3, modelMatrixI);
+                    tp4 = CGPointApplyAffineTransform(tp4, modelMatrixI);
+                    GLfloat textureCoordsModified[] = {
+                        tp1.x+0.5, tp1.y+0.5,
+                        tp2.x+0.5, tp2.y+0.5,
+                        tp3.x+0.5, tp3.y+0.5,
+                        tp4.x+0.5, tp4.y+0.5,
+                    };
+                    
+                    glVertexAttribPointer(ATTRIB_TEXCOORD2_RPL, 2, GL_FLOAT, 0, 0, textureCoordsModified);
+                    glEnableVertexAttribArray(ATTRIB_TEXCOORD2_RPL);
+                }
                 
                 // Draw the layer
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -228,6 +324,9 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         glFlush();
 		
 	bail:
+        if(trcoBGRATexture){
+            CFRelease(trcoBGRATexture);
+        }
         if(trckBGRATexture){
             CFRelease(trckBGRATexture);
         }
