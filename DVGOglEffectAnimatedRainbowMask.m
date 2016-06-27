@@ -1,8 +1,9 @@
 #import "DVGOglEffectAnimatedRainbowMask.h"
 enum
 {
-    UNIFORM_RMASKA_BLN,
-    UNIFORM_RMASKA_SAMPLER2_RPL
+    UNIFORM_RMASKA_BLN_RPL,
+    UNIFORM_RMASKA_SAMPLER2_RPL,
+    UNIFORM_RMASKA_SIDESAMPL_STEP_RPL,
 };
 
 static NSString* kEffectFallthrouVertexShader = SHADER_STRING
@@ -41,8 +42,9 @@ static NSString* kEffectVertexShader = SHADER_STRING
 
 static NSString* kEffectFragmentShader = SHADER_STRING
 (
- const highp float kEps = 0.0001;
+ const highp float kEps = 0.001;
  varying highp vec2 textureCoordinate;
+ uniform highp vec2 rmaskCoordinateStep;
  uniform sampler2D inputRMaskTexture;
  uniform sampler2D inputPhotoTexture;
  uniform lowp float blendingFactor;
@@ -52,8 +54,60 @@ static NSString* kEffectFragmentShader = SHADER_STRING
      highp vec4 photoColor = vec4(0,0,0,0);
      if(rmaskColor.b > kEps)
      {
-         highp vec2 photoTextureCoords = vec2(rmaskColor.r, rmaskColor.g);
-         photoColor = texture2D(inputPhotoTexture, photoTextureCoords);
+         highp vec4 rmaskColor1 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor2 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor3 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor4 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor5 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*4.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor6 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*4.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor7 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*4.0));
+         highp vec4 rmaskColor8 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*4.0));
+         highp float ptc_ok = 1.0;
+         highp float ptc_x = rmaskColor.r;
+         highp float ptc_y = rmaskColor.g;
+         if(rmaskColor1.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor1.r;
+             ptc_y = ptc_y+rmaskColor1.g;
+         }
+         if(rmaskColor2.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor2.r;
+             ptc_y = ptc_y+rmaskColor2.g;
+         }
+         if(rmaskColor3.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor3.r;
+             ptc_y = ptc_y+rmaskColor3.g;
+         }
+         if(rmaskColor4.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor4.r;
+             ptc_y = ptc_y+rmaskColor4.g;
+         }
+         if(rmaskColor5.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor5.r;
+             ptc_y = ptc_y+rmaskColor5.g;
+         }
+         if(rmaskColor6.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor6.r;
+             ptc_y = ptc_y+rmaskColor6.g;
+         }
+         if(rmaskColor7.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor7.r;
+             ptc_y = ptc_y+rmaskColor7.g;
+         }
+         if(rmaskColor8.b > kEps){
+             ptc_ok = ptc_ok+1.0;
+             ptc_x = ptc_x+rmaskColor8.r;
+             ptc_y = ptc_y+rmaskColor8.g;
+         }
+         //highp vec2 photoColorTex = vec2(rmaskColor.r, rmaskColor.g);
+         highp vec2 photoColorTex = vec2(ptc_x/ptc_ok, ptc_y/ptc_ok);
+         photoColor = texture2D(inputPhotoTexture, photoColorTex);
      }
      highp vec4 finalColor = vec4(photoColor.r*blendingFactor,photoColor.g*blendingFactor,photoColor.b*blendingFactor,blendingFactor*rmaskColor.b);
      gl_FragColor = finalColor;
@@ -105,7 +159,8 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                                 @[@(UNIFORM_RENDER_TRANSFORM_RPL), @"renderTransform"],
                                 @[@(UNIFORM_SHADER_SAMPLER_RPL), @"inputRMaskTexture"],
                                 @[@(UNIFORM_RMASKA_SAMPLER2_RPL), @"inputPhotoTexture"],
-                                @[@(UNIFORM_RMASKA_BLN), @"blendingFactor"]
+                                @[@(UNIFORM_RMASKA_BLN_RPL), @"blendingFactor"],
+                                @[@(UNIFORM_RMASKA_SIDESAMPL_STEP_RPL), @"rmaskCoordinateStep"]
                                 ]
      ];
     self.objectsOglBuffers = @[].mutableCopy;
@@ -211,11 +266,15 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
         [self.frameMovementAnimations fetchKeyedValues:layerValues atTime:time];
         CGAffineTransform trf = CGAffineTransformIdentity;
-        trf = CGAffineTransformScale(trf, 1.0, track_w/track_h);// Accounting for aspect ration
+        if(self.adjustScaleForAspectRatio){
+            trf = CGAffineTransformScale(trf, 1.0, track_w/track_h);// Accounting for aspect ratio
+        }
         trf = CGAffineTransformTranslate(trf, layerValues[kDVGVITimelineXPosKey], layerValues[kDVGVITimelineYPosKey]);
         trf = CGAffineTransformScale(trf, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]);
         trf = CGAffineTransformRotate(trf, layerValues[kDVGVITimelineRotationKey]);
-        trf = CGAffineTransformScale(trf, 1.0, track_h/track_w);// Unwrapping aspect ration
+        if(self.adjustScaleForAspectRatio){
+            trf = CGAffineTransformScale(trf, 1.0, track_h/track_w);// Unwrapping aspect ratio
+        }
         p1 = CGPointApplyAffineTransform(p1, trf);
         p2 = CGPointApplyAffineTransform(p2, trf);
         p3 = CGPointApplyAffineTransform(p3, trf);
@@ -261,8 +320,12 @@ static NSString* kEffectFragmentShader = SHADER_STRING
 //    };
     glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, textureCoords);//textureCoordsModified
     glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
-    glUniform1f([self getActiveShaderUniform:UNIFORM_RMASKA_BLN], blendFactor);
+    glUniform1f([self getActiveShaderUniform:UNIFORM_RMASKA_BLN_RPL], blendFactor);
     if(layerBGRATexture){
+        CGFloat layerTexW = 1.0/layerBGRATexture.width;
+        CGFloat layerTexH = 1.0/layerBGRATexture.height;
+        GLfloat rmaskTextXYStep[2] = {layerTexW,layerTexH};
+        glUniform2fv([self getActiveShaderUniform:UNIFORM_RMASKA_SIDESAMPL_STEP_RPL], 1, rmaskTextXYStep);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(layerBGRATexture.target, layerBGRATexture.name);
         glUniform1i([self getActiveShaderUniform:UNIFORM_RMASKA_SAMPLER2_RPL], 1);

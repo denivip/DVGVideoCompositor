@@ -8,9 +8,12 @@
 #import "DVGOglEffectAnimatedRainbowMask.h"
 #import "DVGEasing.h"
 
+extern NSString* kCompEffectOptionExportSize;
+extern NSString* kCompEffectOptionProgressBlock;
+
 @interface DVGStackableVideoCompositor : NSObject <AVVideoCompositing>
-+ (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack;
-+ (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack forSize:(CGSize)outsize;
++ (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
++ (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
 
 // Convinience methods for Typomatic, etc
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;

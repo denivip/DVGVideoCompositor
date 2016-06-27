@@ -170,11 +170,15 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
         [self.frameMovementAnimations fetchKeyedValues:layerValues atTime:time];
         CGAffineTransform trf = CGAffineTransformIdentity;
-        trf = CGAffineTransformScale(trf, 1.0, track_w/track_h);// Accounting for aspect ration
+        if(self.adjustScaleForAspectRatio){
+            trf = CGAffineTransformScale(trf, 1.0, track_w/track_h);// Accounting for aspect ratio
+        }
         trf = CGAffineTransformTranslate(trf, layerValues[kDVGVITimelineXPosKey], layerValues[kDVGVITimelineYPosKey]);
         trf = CGAffineTransformScale(trf, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]);
         trf = CGAffineTransformRotate(trf, layerValues[kDVGVITimelineRotationKey]);
-        trf = CGAffineTransformScale(trf, 1.0, track_h/track_w);// Unwrapping aspect ration
+        if(self.adjustScaleForAspectRatio){
+            trf = CGAffineTransformScale(trf, 1.0, track_h/track_w);// Unwrapping aspect ratio
+        }
         p1 = CGPointApplyAffineTransform(p1, trf);
         p2 = CGPointApplyAffineTransform(p2, trf);
         p3 = CGPointApplyAffineTransform(p3, trf);

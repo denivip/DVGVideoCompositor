@@ -5,6 +5,9 @@
 #import <CoreVideo/CoreVideo.h>
 #import "DVGEasing.h"
 
+NSString* kCompEffectOptionExportSize = @"kCompEffectOptionExportSize";
+NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
+
 @interface DVGStackableVideoCompositor()
 {
 	BOOL								_shouldCancelAllRequests;
@@ -105,6 +108,14 @@
     CMTime elapsed = CMTimeSubtract(request.compositionTime, request.videoCompositionInstruction.timeRange.start);
     float tweenFactor = CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(request.videoCompositionInstruction.timeRange.duration);
     BOOL isOkRendered = YES;
+    currentInstruction.actualRenderTime = time;
+    currentInstruction.actualRenderProgress = tweenFactor;
+    if(currentInstruction.onBeforeRenderingFrame){
+        currentInstruction.onBeforeRenderingFrame(currentInstruction);
+        time = currentInstruction.actualRenderTime;
+        tweenFactor = currentInstruction.actualRenderProgress;
+    }
+    //if(currentInstruction.lastOkRenderedPixels){isOkRendered = NO;}else{// DBG
     for(DVGOglEffectBase* renderer in currentInstruction.renderersStack){
         CGSize renderSize = _renderContext.size;
         // Destination pixel buffer into which we render the output
@@ -150,6 +161,7 @@
         }
         prevBuffer = dstPixels;
     }
+    //}
     // Do NOT releasing prevBuffer - it is == dstPixels, which will be freed on upper levels
     _renderContextDidChange = NO;
     if(isOkRendered){
@@ -172,10 +184,10 @@
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
-    return [DVGStackableVideoCompositor createExportSessionWithAssets:@[asset] andEffectsStack:@[kar] forSize:CGSizeMake(0,0)];
+    return [DVGStackableVideoCompositor createExportSessionWithAssets:@[asset] andEffectsStack:@[kar] options:nil];
 }
 
-+ (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack forSize:(CGSize)outsize
++ (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions
 {
     if([assets count] == 0){
         return nil;
@@ -184,6 +196,10 @@
     NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
     if([videoTracks count] == 0){
         return nil;
+    }
+    CGSize outsize = CGSizeMake(0, 0);
+    if(svcOptions && [svcOptions valueForKey:kCompEffectOptionExportSize] != nil){
+        outsize = [[svcOptions valueForKey:kCompEffectOptionExportSize] CGSizeValue];
     }
     AVAssetTrack* videoTrack = [videoTracks objectAtIndex:0];
     CGSize videoSize = [videoTrack naturalSize];
@@ -199,7 +215,9 @@
     videoComposition = [AVMutableVideoComposition videoComposition];
     [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack
                                           forAssets:assets
-                                           withSize:videoSize withOrientation:inputRotation];
+                                           withSize:videoSize
+                                    withOrientation:inputRotation
+                                        withOptions:svcOptions];
     
     if (videoComposition) {
         AVAssetExportSession* exportSession = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetHighestQuality];
@@ -217,10 +235,10 @@
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
-    return [DVGStackableVideoCompositor createPlayerItemWithAssets:@[asset] andEffectsStack:@[kar]];
+    return [DVGStackableVideoCompositor createPlayerItemWithAssets:@[asset] andEffectsStack:@[kar] options:nil];
 }
 
-+ (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack
++ (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions
 {
     if([assets count] == 0){
         return nil;
@@ -245,7 +263,9 @@
     videoComposition = [AVMutableVideoComposition videoComposition];
     [DVGStackableVideoCompositor prepareComposition:composition andVideoComposition:videoComposition andEffectsStack:effstack
                                           forAssets:assets
-                                           withSize:videoSize withOrientation:inputRotation];
+                                           withSize:videoSize
+                                    withOrientation:inputRotation
+                                        withOptions:svcOptions];
     
     if (videoComposition) {
         // Every videoComposition needs these properties to be set:
@@ -264,6 +284,7 @@
                  forAssets:(NSArray<AVAsset*>*)assets
                    withSize:(CGSize)videoSize
                   withOrientation:(DVGGLRotationMode)orientation
+               withOptions:(NSDictionary*)svcOptions
 {
     if([assets count] == 0){
         return NO;
@@ -311,6 +332,9 @@
         videoComposition.customVideoCompositorClass = [DVGStackableVideoCompositor class];
         DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingWithSourceTrackIDs:compositionTracks
                                                                                                                                forTimeRange:timeRangeInAsset];
+        if(svcOptions != nil){
+            videoInstruction.onBeforeRenderingFrame = [svcOptions objectForKey:kCompEffectOptionProgressBlock];
+        }
         int renderers = 0;
         for(DVGOglEffectBase* renderer in effstack){
             NSInteger trackIdx = renderer.effectTrackIndex;
