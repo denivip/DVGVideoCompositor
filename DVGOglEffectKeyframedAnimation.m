@@ -225,7 +225,8 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 }
                 CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
                 [self.animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
-
+                //#warning Ignoring scale
+                //layerValues[kDVGVITimelineXScaleKey]=layerValues[kDVGVITimelineYScaleKey]=1.0;
                 //NSLog(@"layer pos: %.02f:%.02f at %.02f",layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],time);
                 CGAffineTransform modelMatrix = CGAffineTransformIdentity;
                 modelMatrix = CGAffineTransformTranslate(modelMatrix, layerValues[kDVGVITimelineXPosKey] , layerValues[kDVGVITimelineYPosKey]);
