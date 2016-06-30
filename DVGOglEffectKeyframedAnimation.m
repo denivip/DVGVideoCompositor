@@ -263,19 +263,19 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 if(trcoBGRATexture && self.objectsRenderingMode == kDVGOEKA_trackAsTexture)
                 {
                     GLfloat const* textureCoords2 = [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation];
-                    
-                    // reverting tranforms to make texture stay in place in screen space
                     CGPoint tp1 = CGPointMake(textureCoords2[0]-0.5, textureCoords2[1]-0.5);
                     CGPoint tp2 = CGPointMake(textureCoords2[2]-0.5, textureCoords2[3]-0.5);
                     CGPoint tp3 = CGPointMake(textureCoords2[4]-0.5, textureCoords2[5]-0.5);
                     CGPoint tp4 = CGPointMake(textureCoords2[6]-0.5, textureCoords2[7]-0.5);
 
+                    // reverting tranforms to make texture stay in place in screen space
                     CGAffineTransform modelMatrixI = CGAffineTransformIdentity;
                     modelMatrixI = CGAffineTransformTranslate(modelMatrixI, layerValues[kDVGVITimelineXPosKey]*0.5, layerValues[kDVGVITimelineYPosKey]*0.5);
                     modelMatrixI = CGAffineTransformScale(modelMatrixI, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
-                    //CGFloat trco_h = CVPixelBufferGetHeight(trackBufferOriginal);
-                    //CGFloat trco_w = CVPixelBufferGetHeight(trackBufferOriginal);
-                    // modelMatrixI = CGAffineTransformScale(modelMatrixI, 1.0, layerObj.objectImage.size.height/trco_h);
+                    // Applying difference between object rect and whole viewport rect
+                    CGFloat trco_w = CVPixelBufferGetWidth(trackBufferOriginal);
+                    CGFloat trco_h = CVPixelBufferGetHeight(trackBufferOriginal);
+                    modelMatrixI = CGAffineTransformScale(modelMatrixI, layerObj.objectImage.size.width/trco_w, layerObj.objectImage.size.height/trco_h);
                     tp1 = CGPointApplyAffineTransform(tp1, modelMatrixI);
                     tp2 = CGPointApplyAffineTransform(tp2, modelMatrixI);
                     tp3 = CGPointApplyAffineTransform(tp3, modelMatrixI);
