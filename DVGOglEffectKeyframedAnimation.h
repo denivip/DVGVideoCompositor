@@ -10,6 +10,7 @@ typedef enum {
 @interface DVGOglEffectKeyframedAnimation : DVGOglEffectBase
 @property DVGKeyframedAnimationScene* animationScene;
 @property DVGOEKAmode objectsRenderingMode;
+@property BOOL adjustScaleForAspectRatio;
 + (void)applyAnimationScene:(DVGKeyframedAnimationScene*)animationScene atTime:(CGFloat)time withPlaceholders:(NSArray<UIView*>*)uiPlaceholders forCanvas:(UIView*)canvasView;
 +(UIImage *)imageWithFlippedRGBOfImage:(UIImage *)image;
 @end

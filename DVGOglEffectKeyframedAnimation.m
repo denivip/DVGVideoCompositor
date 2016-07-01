@@ -213,15 +213,17 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 DVGKeyframedAnimationSceneObject* layerObj = [self.animationScene.objects objectAtIndex:i];
                 CGFloat layerObjWidth = layerObj.relativeSize.width;
                 CGFloat layerObjHeigth = layerObj.relativeSize.height;
+                CGFloat layerImgWidth = layerObj.objectImage.size.width;
+                CGFloat layerImgHeigth = layerObj.objectImage.size.height;
                 CGFloat layerObjAspect = 1;
                 if(layerObjWidth <= 0){
                     // calcualting from height
                     layerObjAspect = vport_w/vport_h;
-                    layerObjWidth = layerObjHeigth*layerObj.objectImage.size.width/layerObj.objectImage.size.height;
+                    layerObjWidth = layerObjHeigth*layerImgWidth/layerImgHeigth;
                 }else if(layerObjHeigth <= 0){
                     // calcualting from width
                     layerObjAspect = vport_w/vport_h;
-                    layerObjHeigth = layerObjWidth*layerObj.objectImage.size.height/layerObj.objectImage.size.width;
+                    layerObjHeigth = layerObjWidth*layerImgHeigth/layerImgWidth;
                 }
                 CGFloat layerValues[kDVGVITimelineKeyLast] = {0};
                 [self.animationScene fetchKeyedValues:layerValues atTime:time forObject:i];
@@ -229,10 +231,16 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 //layerValues[kDVGVITimelineXScaleKey]=layerValues[kDVGVITimelineYScaleKey]=1.0;
                 //NSLog(@"layer pos: %.02f:%.02f at %.02f",layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],time);
                 CGAffineTransform modelMatrix = CGAffineTransformIdentity;
+                if(self.adjustScaleForAspectRatio){
+                    modelMatrix = CGAffineTransformScale(modelMatrix, 1.0, layerImgWidth/layerImgHeigth);
+                }
                 modelMatrix = CGAffineTransformTranslate(modelMatrix, layerValues[kDVGVITimelineXPosKey] , layerValues[kDVGVITimelineYPosKey]);
                 modelMatrix = CGAffineTransformScale(modelMatrix, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
-                modelMatrix = CGAffineTransformRotate(modelMatrix, layerValues[kDVGVITimelineRotationKey]);
                 modelMatrix = CGAffineTransformScale(modelMatrix, layerObjWidth, layerObjHeigth);
+                modelMatrix = CGAffineTransformRotate(modelMatrix, layerValues[kDVGVITimelineRotationKey]);
+                if(self.adjustScaleForAspectRatio){
+                    modelMatrix = CGAffineTransformScale(modelMatrix, 1.0, layerImgHeigth/layerImgWidth);
+                }
                 
                 CGPoint p1 = CGPointApplyAffineTransform(CGPointMake(-1.0f, -1.0f), modelMatrix);
                 CGPoint p2 = CGPointApplyAffineTransform(CGPointMake(1.0f, -1.0f), modelMatrix);
@@ -270,12 +278,20 @@ static NSString* kEffectFragmentShader = SHADER_STRING
 
                     // reverting tranforms to make texture stay in place in screen space
                     CGAffineTransform modelMatrixI = CGAffineTransformIdentity;
+                    if(self.adjustScaleForAspectRatio){
+                        modelMatrixI = CGAffineTransformScale(modelMatrixI, 1.0, layerImgWidth/layerImgHeigth);
+                    }
                     modelMatrixI = CGAffineTransformTranslate(modelMatrixI, layerValues[kDVGVITimelineXPosKey]*0.5, layerValues[kDVGVITimelineYPosKey]*0.5);
                     modelMatrixI = CGAffineTransformScale(modelMatrixI, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
+                    modelMatrixI = CGAffineTransformScale(modelMatrixI, layerObjWidth, layerObjHeigth);
+                    modelMatrixI = CGAffineTransformRotate(modelMatrixI, layerValues[kDVGVITimelineRotationKey]);
+                    if(self.adjustScaleForAspectRatio){
+                        modelMatrixI = CGAffineTransformScale(modelMatrixI, 1.0, layerImgHeigth/layerImgWidth);
+                    }
                     // Applying difference between object rect and whole viewport rect
-                    CGFloat trco_w = CVPixelBufferGetWidth(trackBufferOriginal);
-                    CGFloat trco_h = CVPixelBufferGetHeight(trackBufferOriginal);
-                    modelMatrixI = CGAffineTransformScale(modelMatrixI, layerObj.objectImage.size.width/trco_w, layerObj.objectImage.size.height/trco_h);
+                    //CGFloat trco_w = CVPixelBufferGetWidth(trackBufferOriginal);
+                    //CGFloat trco_h = CVPixelBufferGetHeight(trackBufferOriginal);
+                    //modelMatrixI = CGAffineTransformScale(modelMatrixI, layerObj.objectImage.size.width/trco_w, layerObj.objectImage.size.height/trco_h);
                     tp1 = CGPointApplyAffineTransform(tp1, modelMatrixI);
                     tp2 = CGPointApplyAffineTransform(tp2, modelMatrixI);
                     tp3 = CGPointApplyAffineTransform(tp3, modelMatrixI);
