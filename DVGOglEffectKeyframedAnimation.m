@@ -231,10 +231,10 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 //layerValues[kDVGVITimelineXScaleKey]=layerValues[kDVGVITimelineYScaleKey]=1.0;
                 //NSLog(@"layer pos: %.02f:%.02f at %.02f",layerValues[kDVGVITimelineXPosKey],layerValues[kDVGVITimelineYPosKey],time);
                 CGAffineTransform modelMatrix = CGAffineTransformIdentity;
+                modelMatrix = CGAffineTransformTranslate(modelMatrix, layerValues[kDVGVITimelineXPosKey] , layerValues[kDVGVITimelineYPosKey]);
                 if(self.adjustScaleForAspectRatio){
                     modelMatrix = CGAffineTransformScale(modelMatrix, 1.0, layerImgWidth/layerImgHeigth);
                 }
-                modelMatrix = CGAffineTransformTranslate(modelMatrix, layerValues[kDVGVITimelineXPosKey] , layerValues[kDVGVITimelineYPosKey]);
                 modelMatrix = CGAffineTransformScale(modelMatrix, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
                 modelMatrix = CGAffineTransformScale(modelMatrix, layerObjWidth, layerObjHeigth);
                 modelMatrix = CGAffineTransformRotate(modelMatrix, layerValues[kDVGVITimelineRotationKey]);
@@ -278,10 +278,10 @@ static NSString* kEffectFragmentShader = SHADER_STRING
 
                     // reverting tranforms to make texture stay in place in screen space
                     CGAffineTransform modelMatrixI = CGAffineTransformIdentity;
+                    modelMatrixI = CGAffineTransformTranslate(modelMatrixI, layerValues[kDVGVITimelineXPosKey]*0.5, layerValues[kDVGVITimelineYPosKey]*0.5);
                     if(self.adjustScaleForAspectRatio){
                         modelMatrixI = CGAffineTransformScale(modelMatrixI, 1.0, layerImgWidth/layerImgHeigth);
                     }
-                    modelMatrixI = CGAffineTransformTranslate(modelMatrixI, layerValues[kDVGVITimelineXPosKey]*0.5, layerValues[kDVGVITimelineYPosKey]*0.5);
                     modelMatrixI = CGAffineTransformScale(modelMatrixI, layerValues[kDVGVITimelineXScaleKey], layerValues[kDVGVITimelineYScaleKey]*layerObjAspect);
                     modelMatrixI = CGAffineTransformScale(modelMatrixI, layerObjWidth, layerObjHeigth);
                     modelMatrixI = CGAffineTransformRotate(modelMatrixI, layerValues[kDVGVITimelineRotationKey]);
