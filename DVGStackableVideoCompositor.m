@@ -4,7 +4,7 @@
 #import "DVGOglEffectBase.h"
 #import <CoreVideo/CoreVideo.h>
 #import "DVGEasing.h"
-
+static int ddLogLevel = LOG_LEVEL_VERBOSE;
 NSString* kCompEffectOptionExportSize = @"kCompEffectOptionExportSize";
 NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
 
@@ -324,8 +324,13 @@ NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
             compositionVideoTrack2 = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
             CMTimeRange timeRangeInAsset2 = CMTimeRangeMake(kCMTimeZero, [asset2 duration]);
             //NSLog(@"Adding track %i, time: %0.02f (base time %0.02f)", compositionVideoTrack2.trackID, CMTimeGetSeconds([asset2 duration]), CMTimeGetSeconds([asset duration]));
-            [compositionVideoTrack2 insertTimeRange:timeRangeInAsset2 ofTrack:videoTrack2 atTime:kCMTimeZero error:nil];
-            [compositionTracks addObject:@(compositionVideoTrack2.trackID)];
+            NSError* insertErr = nil;
+            [compositionVideoTrack2 insertTimeRange:timeRangeInAsset2 ofTrack:videoTrack2 atTime:kCMTimeZero error:&insertErr];
+            if(insertErr){
+                DDLogError(@"Can`t insert track %@", videoTrack2);
+            }else{
+                [compositionTracks addObject:@(compositionVideoTrack2.trackID)];
+            }
         }
     }
     if([effstack count]>0){
