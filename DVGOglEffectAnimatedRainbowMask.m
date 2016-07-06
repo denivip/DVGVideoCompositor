@@ -109,7 +109,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
          highp vec2 photoColorTex = vec2(ptc_x/ptc_ok, ptc_y/ptc_ok);
          photoColor = texture2D(inputPhotoTexture, photoColorTex);
      }
-     highp vec4 finalColor = vec4(photoColor.r*blendingFactor,photoColor.g*blendingFactor,photoColor.b*blendingFactor,blendingFactor*rmaskColor.b);
+     highp vec4 finalColor = vec4(photoColor.r*blendingFactor*rmaskColor.b,photoColor.g*blendingFactor*rmaskColor.b,photoColor.b*blendingFactor*rmaskColor.b,blendingFactor*rmaskColor.b);
      gl_FragColor = finalColor;
  }
 );
