@@ -18,6 +18,6 @@ extern NSString* kCompEffectOptionProgressBlock;
 // Convinience methods for Typomatic, etc
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;
 + (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;
-
++ (DVGStackableVideoCompositor*)getActiveVideoProcessingCompositor;
 @end
 

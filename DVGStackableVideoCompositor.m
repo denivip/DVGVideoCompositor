@@ -20,6 +20,7 @@ NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
 
 @end
 
+static __weak DVGStackableVideoCompositor* g_activeCompositor;
 @implementation DVGStackableVideoCompositor
 
 #pragma mark - AVVideoCompositing protocol
@@ -33,8 +34,13 @@ NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
 		_renderContextQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.rendercontextqueue", DISPATCH_QUEUE_SERIAL);
         _previousBuffer = nil;
 		_renderContextDidChange = NO;
+        g_activeCompositor = self;
 	}
 	return self;
+}
+
++ (DVGStackableVideoCompositor*)getActiveVideoProcessingCompositor {
+    return g_activeCompositor;
 }
 
 - (NSDictionary *)sourcePixelBufferAttributes
@@ -184,6 +190,7 @@ NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
+    kar.adjustScaleForAspectRatio = YES;
     return [DVGStackableVideoCompositor createExportSessionWithAssets:@[asset] andEffectsStack:@[kar] options:nil];
 }
 
