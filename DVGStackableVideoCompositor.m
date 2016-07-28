@@ -242,6 +242,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 {
     DVGOglEffectKeyframedAnimation* kar = [[DVGOglEffectKeyframedAnimation alloc] init];
     kar.animationScene = animscene;
+    kar.adjustScaleForAspectRatio = YES;
     return [DVGStackableVideoCompositor createPlayerItemWithAssets:@[asset] andEffectsStack:@[kar] options:nil];
 }
 
