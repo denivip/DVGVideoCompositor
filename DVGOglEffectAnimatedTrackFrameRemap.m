@@ -4,6 +4,7 @@ enum
     UNIFORM_ANIMREMAP_BLN
 };
 
+// default shader - as is, no blending
 static NSString* kEffectFallthrouVertexShader = SHADER_STRING
 (
  attribute vec4 position;
@@ -26,7 +27,8 @@ static NSString* kEffectFallthrouFragmentShader = SHADER_STRING
  }
  );
 
-static NSString* kEffectVertexShader = SHADER_STRING
+// usually used shader - blending with alpha
+static NSString* kEffectBlendAlphaVertexShader = SHADER_STRING
 (
  attribute vec4 position;
  attribute vec4 inputTextureCoordinate;
@@ -38,8 +40,9 @@ static NSString* kEffectVertexShader = SHADER_STRING
  }
 );
 
-static NSString* kEffectFragmentShader = SHADER_STRING
+static NSString* kEffectBlendAlphaFragmentShader = SHADER_STRING
 (
+ const highp float kEps = 0.001;
  varying highp vec2 textureCoordinate;
  uniform sampler2D inputImageTexture;
  uniform lowp float blendingFactor;
@@ -47,6 +50,40 @@ static NSString* kEffectFragmentShader = SHADER_STRING
  {
      lowp vec4 textureColor = texture2D(inputImageTexture, textureCoordinate);
      textureColor = vec4(textureColor.r*blendingFactor,textureColor.g*blendingFactor,textureColor.b*blendingFactor,blendingFactor);
+     gl_FragColor = textureColor;
+ }
+);
+
+
+// brightness-based shader: low-values in any channel makes blending edge
+static NSString* kEffectBlendBrightnessVertexShader = SHADER_STRING
+(
+ attribute vec4 position;
+ attribute vec4 inputTextureCoordinate;
+ varying vec2 textureCoordinate;
+ void main()
+ {
+     gl_Position = position;
+     textureCoordinate = inputTextureCoordinate.xy;
+ }
+);
+
+static NSString* kEffectBlendBrightnessFragmentShader = SHADER_STRING
+(
+ const highp float kEps = 0.3;
+ varying highp vec2 textureCoordinate;
+ uniform sampler2D inputImageTexture;
+ uniform lowp float blendingFactor;
+ void main()
+ {
+     lowp float blendingFactor2 = 1.0;
+     lowp vec4 textureColor = texture2D(inputImageTexture, textureCoordinate);
+     if(textureColor.r < kEps && textureColor.g < kEps && textureColor.b < kEps){
+         lowp float mincolo = min(textureColor.r, textureColor.g);
+         mincolo = min(mincolo, textureColor.b);
+         blendingFactor2 = mincolo/kEps;
+     }
+     textureColor = vec4(textureColor.r*blendingFactor*blendingFactor2,textureColor.g*blendingFactor*blendingFactor2,textureColor.b*blendingFactor*blendingFactor2,blendingFactor*blendingFactor2);
      gl_FragColor = textureColor;
  }
 );
@@ -77,7 +114,18 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                                 @[@(UNIFORM_SHADER_SAMPLER_RPL), @"inputImageTexture"]
                                 ]
      ];
-    [self prepareVertexShader:kEffectVertexShader withFragmentShader:kEffectFragmentShader
+    [self prepareVertexShader:kEffectBlendAlphaVertexShader withFragmentShader:kEffectBlendAlphaFragmentShader
+                  withAttribs:@[
+                                @[@(ATTRIB_VERTEX_RPL), @"position"],
+                                @[@(ATTRIB_TEXCOORD_RPL), @"inputTextureCoordinate"]
+                                ]
+                 withUniforms:@[
+                                @[@(UNIFORM_RENDER_TRANSFORM_RPL), @"renderTransform"],
+                                @[@(UNIFORM_SHADER_SAMPLER_RPL), @"inputImageTexture"],
+                                @[@(UNIFORM_ANIMREMAP_BLN), @"blendingFactor"]
+                                ]
+     ];
+    [self prepareVertexShader:kEffectBlendBrightnessVertexShader withFragmentShader:kEffectBlendBrightnessFragmentShader
                   withAttribs:@[
                                 @[@(ATTRIB_VERTEX_RPL), @"position"],
                                 @[@(ATTRIB_TEXCOORD_RPL), @"inputTextureCoordinate"]
@@ -157,8 +205,12 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         NSLog(@"Failed to make complete framebuffer object %x", glCheckFramebufferStatus(GL_FRAMEBUFFER));
         goto bail;
     }
-    
-    [self activateContextShader:2];
+    if(self.layerBlendingMethod == DVGOglEffectATFRBlendingMethodBrightness){
+        [self activateContextShader:3];
+    }else
+    {
+        [self activateContextShader:2];
+    }
     CGFloat blendFactor = 1.0;
     CGFloat track_w = CVPixelBufferGetWidth(trackBuffer);
     CGFloat track_h = CVPixelBufferGetHeight(trackBuffer);
