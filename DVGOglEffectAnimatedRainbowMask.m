@@ -54,14 +54,14 @@ static NSString* kEffectFragmentShader = SHADER_STRING
      highp vec4 photoColor = vec4(0,0,0,0);
      if(rmaskColor.b > kEps)
      {
-         highp vec4 rmaskColor1 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor2 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor3 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor4 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor5 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*4.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor6 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*4.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
-         highp vec4 rmaskColor7 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*4.0));
-         highp vec4 rmaskColor8 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*4.0));
+         highp vec4 rmaskColor1 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*1.0,textureCoordinate.y+rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor2 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*1.0,textureCoordinate.y-rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor3 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*1.0,textureCoordinate.y-rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor4 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*1.0,textureCoordinate.y+rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor5 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*2.0,textureCoordinate.y+rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor6 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*2.0,textureCoordinate.y-rmaskCoordinateStep.y*1.0));
+         highp vec4 rmaskColor7 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x+rmaskCoordinateStep.x*1.0,textureCoordinate.y+rmaskCoordinateStep.y*2.0));
+         highp vec4 rmaskColor8 = texture2D(inputRMaskTexture, vec2(textureCoordinate.x-rmaskCoordinateStep.x*1.0,textureCoordinate.y-rmaskCoordinateStep.y*2.0));
          highp float ptc_ok = 1.0;
          highp float ptc_x = rmaskColor.r;
          highp float ptc_y = rmaskColor.g;
@@ -105,11 +105,10 @@ static NSString* kEffectFragmentShader = SHADER_STRING
              ptc_x = ptc_x+rmaskColor8.r;
              ptc_y = ptc_y+rmaskColor8.g;
          }
-         //highp vec2 photoColorTex = vec2(rmaskColor.r, rmaskColor.g);
          highp vec2 photoColorTex = vec2(ptc_x/ptc_ok, ptc_y/ptc_ok);
          photoColor = texture2D(inputPhotoTexture, photoColorTex);
      }
-     highp vec4 finalColor = vec4(photoColor.r*blendingFactor*rmaskColor.b,photoColor.g*blendingFactor*rmaskColor.b,photoColor.b*blendingFactor*rmaskColor.b,blendingFactor*rmaskColor.b);
+     highp vec4 finalColor = vec4(photoColor.r*blendingFactor*rmaskColor.b, photoColor.g*blendingFactor*rmaskColor.b, photoColor.b*blendingFactor*rmaskColor.b, blendingFactor*rmaskColor.b);
      gl_FragColor = finalColor;
  }
 );
