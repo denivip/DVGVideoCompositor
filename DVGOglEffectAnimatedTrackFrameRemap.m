@@ -70,7 +70,7 @@ static NSString* kEffectBlendBrightnessVertexShader = SHADER_STRING
 
 static NSString* kEffectBlendBrightnessFragmentShader = SHADER_STRING
 (
- const highp float kEps = 0.3;
+ const highp float kEps = 0.1;
  varying highp vec2 textureCoordinate;
  uniform sampler2D inputImageTexture;
  uniform lowp float blendingFactor;
