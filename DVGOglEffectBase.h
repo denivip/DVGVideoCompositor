@@ -81,6 +81,7 @@ typedef enum {
                        atTime:(CGFloat)time withTween:(float)tweenFactor;
 
 // utility functions
+- (NSInteger)getMaxTextureSize;
 - (CVOpenGLESTextureRef)bgraTextureForPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 + (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize;
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)orientation andSize:(CGSize)videoSize;

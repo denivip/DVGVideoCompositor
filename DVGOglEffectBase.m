@@ -325,6 +325,13 @@ bail:
     return bgraTexture;
 }
 
+- (NSInteger)getMaxTextureSize {
+    int max;
+    [EAGLContext setCurrentContext:self.rplContext];
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max);
+    return max;
+}
+
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)rotation andSize:(CGSize)videoSize
 {
     if((rotation) == kDVGGLRotateLeft || (rotation) == kDVGGLRotateRight || (rotation) == kDVGGLRotateRightFlipVertical || (rotation) == kDVGGLRotateRightFlipHorizontal){
