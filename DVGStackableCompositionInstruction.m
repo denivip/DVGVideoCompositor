@@ -1,6 +1,21 @@
 #import "DVGStackableCompositionInstruction.h"
 @implementation DVGStackableCompositionInstruction
 
+- (id)initProcessingZero
+{
+    self = [super init];
+    if (self) {
+        self.pools = @{}.mutableCopy;
+        _requiredSourceTrackIDs = nil;
+        _passthroughTrackID = kCMPersistentTrackID_Invalid;
+        _timeRange = kCMTimeRangeZero;
+        _containsTweening = TRUE;
+        _enablePostProcessing = FALSE;
+    }
+    
+    return self;
+}
+
 - (id)initProcessingWithSourceTrackIDs:(NSArray *)sourceTrackIDs forTimeRange:(CMTimeRange)timeRange
 {
 	self = [super init];

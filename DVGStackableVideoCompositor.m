@@ -7,13 +7,13 @@
 static int ddLogLevel = LOG_LEVEL_VERBOSE;
 NSString* kCompEffectOptionExportSize = @"kCompEffectOptionExportSize";
 NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
+dispatch_queue_t renderingQueue;
+dispatch_queue_t renderContextQueue;
 
 @interface DVGStackableVideoCompositor()
 {
 	BOOL								_shouldCancelAllRequests;
 	BOOL								_renderContextDidChange;
-	dispatch_queue_t					_renderingQueue;
-	dispatch_queue_t					_renderContextQueue;
     CVPixelBufferRef					_previousBuffer;
 	AVVideoCompositionRenderContext*	_renderContext;
 }
@@ -24,14 +24,17 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 @implementation DVGStackableVideoCompositor
 
 #pragma mark - AVVideoCompositing protocol
++ (void) initialize
+{
+    renderingQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.renderingqueue", DISPATCH_QUEUE_SERIAL);
+    renderContextQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.rendercontextqueue", DISPATCH_QUEUE_SERIAL);
+}
 
 - (id)init
 {
 	self = [super init];
 	if (self)
 	{
-		_renderingQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.renderingqueue", DISPATCH_QUEUE_SERIAL);
-		_renderContextQueue = dispatch_queue_create("com.denivip.DVGStackableVideoCompositor.rendercontextqueue", DISPATCH_QUEUE_SERIAL);
         _previousBuffer = nil;
 		_renderContextDidChange = NO;
         g_activeCompositor = self;
@@ -60,7 +63,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 
 - (void)renderContextChanged:(AVVideoCompositionRenderContext *)newRenderContext
 {
-	dispatch_sync(_renderContextQueue, ^() {
+	dispatch_sync(renderContextQueue, ^() {
 		_renderContext = newRenderContext;
 		_renderContextDidChange = YES;
 	});
@@ -69,7 +72,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 - (void)startVideoCompositionRequest:(AVAsynchronousVideoCompositionRequest *)request
 {
 	@autoreleasepool {
-		dispatch_async(_renderingQueue,^() {
+		dispatch_async(renderingQueue,^() {
 			
 			// Check if all pending requests have been cancelled
 			if (_shouldCancelAllRequests) {
@@ -95,7 +98,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 	// pending requests will call finishCancelledRequest, those already rendering will call finishWithComposedVideoFrame
 	_shouldCancelAllRequests = YES;
 	
-	dispatch_barrier_async(_renderingQueue, ^() {
+	dispatch_barrier_async(renderingQueue, ^() {
 		// start accepting requests again
 		_shouldCancelAllRequests = NO;
 	});
@@ -103,56 +106,74 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 
 - (CVPixelBufferRef)newRenderedPixelBufferForRequest:(AVAsynchronousVideoCompositionRequest *)request error:(NSError **)errOut
 {
-	DVGStackableCompositionInstruction *currentInstruction = request.videoCompositionInstruction;
-    CVPixelBufferRef prevBuffer = nil;
-    CVPixelBufferRef dstPixels = nil;
-	
-	// tweenFactor indicates how far within that timeRange are we rendering this frame. This is normalized to vary between 0.0 and 1.0.
-	// 0.0 indicates the time at first frame in that videoComposition timeRange
-	// 1.0 indicates the time at last frame in that videoComposition timeRange
+    DVGStackableCompositionInstruction *currentInstruction = request.videoCompositionInstruction;
+    
+    // tweenFactor indicates how far within that timeRange are we rendering this frame. This is normalized to vary between 0.0 and 1.0.
+    // 0.0 indicates the time at first frame in that videoComposition timeRange
+    // 1.0 indicates the time at last frame in that videoComposition timeRange
     CGFloat time = CMTimeGetSeconds(request.compositionTime);
     CMTime elapsed = CMTimeSubtract(request.compositionTime, request.videoCompositionInstruction.timeRange.start);
     float tweenFactor = CMTimeGetSeconds(elapsed) / CMTimeGetSeconds(request.videoCompositionInstruction.timeRange.duration);
-    BOOL isOkRendered = YES;
+    currentInstruction.actualRenderSize = _renderContext.size;
     currentInstruction.actualRenderTime = time;
     currentInstruction.actualRenderProgress = tweenFactor;
+    currentInstruction.actualRenderTransform = nil;
     if(currentInstruction.onBeforeRenderingFrame){
         currentInstruction.onBeforeRenderingFrame(currentInstruction);
         time = currentInstruction.actualRenderTime;
         tweenFactor = currentInstruction.actualRenderProgress;
     }
+    if(_renderContextDidChange){
+        currentInstruction.actualRenderTransform = [NSValue valueWithCGAffineTransform:_renderContext.renderTransform];
+    }
+    DVGStackableCompositionInstructionFrameBufferFabricator ibf = currentInstruction.onTrackFrameNeeded;
+    if (ibf == nil){
+        ibf = ^(CMPersistentTrackID effectTrackID){
+            return [request sourceFrameByTrackID:effectTrackID];
+        };
+    }
+    _renderContextDidChange = NO;
+    return [DVGStackableVideoCompositor renderSingleFrameWithInstruction:currentInstruction trackFrameFabricator:ibf];
+}
+
++ (CVPixelBufferRef)renderSingleFrameWithInstruction:(DVGStackableCompositionInstruction*)currentInstruction
+                                trackFrameFabricator:(DVGStackableCompositionInstructionFrameBufferFabricator)ibf
+{
+    BOOL isOkRendered = YES;
+    CVPixelBufferRef prevBuffer = nil;
+    CVPixelBufferRef dstPixels = nil;
     //if(currentInstruction.lastOkRenderedPixels){isOkRendered = NO;}else{// DBG
     for(DVGOglEffectBase* renderer in currentInstruction.renderersStack){
-        CGSize renderSize = _renderContext.size;
+        CGSize renderSize = currentInstruction.actualRenderSize;
         // Destination pixel buffer into which we render the output
-        if(renderer.effectRenderingUpscale != 1.0f){
-            int videoWidth = renderSize.width*renderer.effectRenderingUpscale;
-            int videoHeight = renderSize.height*renderer.effectRenderingUpscale;
-            CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)[currentInstruction getPixelBufferPoolForWidth:videoWidth andHeight:videoHeight];
-            CVPixelBufferPoolCreatePixelBuffer(NULL, bufferPool, &dstPixels);
-        }else
-        {
-            dstPixels = [_renderContext newPixelBuffer];
-        }
+        //if(renderer.effectRenderingUpscale != 1.0f){
+        int videoWidth = renderSize.width*renderer.effectRenderingUpscale;
+        int videoHeight = renderSize.height*renderer.effectRenderingUpscale;
+        CVPixelBufferPoolRef bufferPool = (__bridge CVPixelBufferPoolRef)[currentInstruction getPixelBufferPoolForWidth:videoWidth andHeight:videoHeight];
+        CVPixelBufferPoolCreatePixelBuffer(NULL, bufferPool, &dstPixels);
+        //}else
+        //{
+        //    dstPixels = [rc newPixelBuffer];
+        //}
         CGSize destinationSize = CGSizeMake(CVPixelBufferGetWidth(dstPixels), CVPixelBufferGetHeight(dstPixels));
         // Recompute normalized render transform everytime the render context changes
-        if (_renderContextDidChange) {
+        if (currentInstruction.actualRenderTransform != nil) {
             // The renderTransform returned by the renderContext is in X: [0, w] and Y: [0, h] coordinate system
             // But since in this sample we render using OpenGLES which has its coordinate system between [-1, 1] we compute a normalized transform
             CGAffineTransform renderContextTransform = {renderSize.width/2, 0, 0, renderSize.height/2, renderSize.width/2, renderSize.height/2};
             CGAffineTransform destinationTransform = {2/destinationSize.width, 0, 0, 2/destinationSize.height, -1, -1};
-            CGAffineTransform normalizedRenderTransform = CGAffineTransformConcat(CGAffineTransformConcat(renderContextTransform, _renderContext.renderTransform), destinationTransform);
+            CGAffineTransform normalizedRenderTransform = CGAffineTransformConcat(CGAffineTransformConcat(renderContextTransform, [currentInstruction.actualRenderTransform CGAffineTransformValue]), destinationTransform);
             [renderer prepareTransform:normalizedRenderTransform];
         }
 
         CVPixelBufferRef trackBuffer = nil;
         DVGGLRotationMode trackOrientation = kDVGGLNoRotation;
-        if(renderer.effectTrackID != kCMPersistentTrackID_Invalid){
-            trackBuffer = [request sourceFrameByTrackID:renderer.effectTrackID];
+        if(ibf && renderer.effectTrackID != kCMPersistentTrackID_Invalid){
+            trackBuffer = ibf(renderer.effectTrackID);//[request sourceFrameByTrackID:renderer.effectTrackID];
             trackOrientation = renderer.effectTrackOrientation;
             if(trackBuffer == nil){
                 isOkRendered = NO;
-                NSLog(@"No frame for track %i, time: %0.02f. Falling back to last Ok frame", renderer.effectTrackID, time);
+                NSLog(@"No frame for track %i, time: %0.02f. Falling back to last Ok frame", renderer.effectTrackID, currentInstruction.actualRenderTime);
                 break;
             }
         }
@@ -160,7 +181,8 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
                              prevBuffer:prevBuffer
                             trackBuffer:trackBuffer
                             trackOrient:trackOrientation
-                                 atTime:time withTween:tweenFactor];
+                                 atTime:currentInstruction.actualRenderTime
+                              withTween:currentInstruction.actualRenderProgress];
         if(prevBuffer){
             CVPixelBufferRelease(prevBuffer);
             prevBuffer = nil;
@@ -169,7 +191,6 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
     }
     //}
     // Do NOT releasing prevBuffer - it is == dstPixels, which will be freed on upper levels
-    _renderContextDidChange = NO;
     if(isOkRendered){
         if(currentInstruction.lastOkRenderedPixels){
             CVPixelBufferRelease(currentInstruction.lastOkRenderedPixels);
@@ -373,6 +394,43 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
     }
     videoComposition.instructions = instructions;
     return YES;
+}
+
++ (UIImage*)renderSingleFrameWithImage:(UIImage*)frame andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions {
+    __block  UIImage* res = nil;
+    dispatch_sync(renderingQueue,^() {
+        DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingZero];
+        videoInstruction.actualRenderSize = frame.size;
+        videoInstruction.actualRenderTime = 0;
+        videoInstruction.actualRenderProgress = 0;
+        videoInstruction.actualRenderTransform = nil;
+        videoInstruction.renderersStack = effstack;
+        videoInstruction.actualRenderTransform = [NSValue valueWithCGAffineTransform:CGAffineTransformIdentity];
+        UIImage* frameFlipped = frame;//[DVGOglEffectBase imageWithFlippedRGBOfImage:frame];
+        CGImageRef frameFlippedCG = [frameFlipped CGImage];
+        CVPixelBufferRef frameBuffer = [DVGOglEffectBase createPixelBufferFromCGImage:frameFlippedCG];
+        DVGStackableCompositionInstructionFrameBufferFabricator ibf = ^(CMPersistentTrackID effectTrackID){
+            return frameBuffer;
+        };
+       
+        //CVPixelBufferRef buff = ibf(0);CFRetain(buff);
+        CVPixelBufferRef buff = [DVGStackableVideoCompositor renderSingleFrameWithInstruction:videoInstruction trackFrameFabricator:ibf];
+        CGImageRef cgImage = [DVGOglEffectBase createCGImageFromPixelBuffer:buff];
+        if(cgImage != nil){
+            res = [UIImage imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationUp];
+        }
+        if(buff != nil){
+            CVPixelBufferRelease(buff);
+            
+        }
+        if(cgImage != nil){
+            CGImageRelease(cgImage);
+        }
+        if(frameBuffer != nil){
+            CVPixelBufferRelease(frameBuffer);
+        }
+    });
+    return res;
 }
 
 @end

@@ -14,10 +14,13 @@ extern NSString* kCompEffectOptionProgressBlock;
 @interface DVGStackableVideoCompositor : NSObject <AVVideoCompositing>
 + (AVPlayerItem*)createPlayerItemWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
 + (AVAssetExportSession*)createExportSessionWithAssets:(NSArray<AVAsset*>*)assets andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
++ (CVPixelBufferRef)renderSingleFrameWithInstruction:(DVGStackableCompositionInstruction*)currentInstruction trackFrameFabricator:(DVGStackableCompositionInstructionFrameBufferFabricator)ibf;
 
 // Convinience methods for Typomatic, etc
 + (AVPlayerItem*)createPlayerItemWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;
 + (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;
 + (DVGStackableVideoCompositor*)getActiveVideoProcessingCompositor;
++ (UIImage*)renderSingleFrameWithImage:(UIImage*)frame andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
+
 @end
 

@@ -36,9 +36,10 @@
 {
     self = [super init];
     if(self) {
-		self.rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+        self.rplContext = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
         self.effectTrackID = kCMPersistentTrackID_Invalid;
         self.effectTrackIndex = kCMPersistentTrackID_Invalid;
+        self.rplRenderTransform = CGAffineTransformIdentity;
         self.effectRenderingBlendMode = DVGGLBlendNormal;
         self.effectTrackOrientation = kDVGGLNoRotation;
         self.effectRenderingUpscale = 1.0;
@@ -444,16 +445,72 @@ bail:
     return textureInfo;
 }
 
+static void ReleaseCVPixelBuffer(void *pixel, const void *data, size_t size)
+{
+    CVPixelBufferRef pixelBuffer = (CVPixelBufferRef)pixel;
+    CVPixelBufferUnlockBaseAddress( pixelBuffer, 0 );
+    CVPixelBufferRelease( pixelBuffer );
+}
+
++ (CGImageRef)createCGImageFromPixelBuffer:(CVPixelBufferRef)pixelBuffer
+{
+    OSStatus err = noErr;
+    size_t width, height, sourceRowBytes;
+    void *sourceBaseAddr = NULL;
+    CGBitmapInfo bitmapInfo = kCGBitmapByteOrder32Big;
+    CGColorSpaceRef colorspace = NULL;
+    CGDataProviderRef provider = NULL;
+    CGImageRef image = NULL;
+    
+    OSType sourcePixelFormat = CVPixelBufferGetPixelFormatType( pixelBuffer );
+//    if ( kCVPixelFormatType_32ARGB == sourcePixelFormat )
+//        bitmapInfo = kCGBitmapByteOrder32Big;// | kCGImageAlphaNoneSkipFirst;
+//    else if ( kCVPixelFormatType_32RGBA == sourcePixelFormat )
+//        bitmapInfo = kCGBitmapByteOrder32Little;// | kCGImageAlphaNoneSkipFirst;
+//    else if ( kCVPixelFormatType_32BGRA == sourcePixelFormat )
+//        bitmapInfo = kCGBitmapByteOrder32Little;// | kCGImageAlphaNoneSkipFirst;
+//    else
+//        return nil;//-95014; // only uncompressed pixel formats
+    
+    sourceRowBytes = CVPixelBufferGetBytesPerRow( pixelBuffer );
+    width = CVPixelBufferGetWidth( pixelBuffer );
+    height = CVPixelBufferGetHeight( pixelBuffer );
+    
+    CVPixelBufferLockBaseAddress( pixelBuffer, 0 );
+    sourceBaseAddr = CVPixelBufferGetBaseAddress( pixelBuffer );
+    colorspace = CGColorSpaceCreateDeviceRGB();
+    
+    CVPixelBufferRetain( pixelBuffer );
+    provider = CGDataProviderCreateWithData( (void *)pixelBuffer, sourceBaseAddr, sourceRowBytes * height, ReleaseCVPixelBuffer);
+    image = CGImageCreate(width, height, 8, 32, sourceRowBytes, colorspace, bitmapInfo, provider, NULL, true, kCGRenderingIntentDefault);
+    
+    if ( err && image ) {
+        CGImageRelease( image );
+        image = NULL;
+    }
+    if ( provider ) CGDataProviderRelease( provider );
+    if ( colorspace ) CGColorSpaceRelease( colorspace );
+
+    return image;
+}
+
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image
 {
     CGSize frameSize = CGSizeMake(CGImageGetWidth(image), CGImageGetHeight(image));
     NSDictionary *options = @{
-                              (__bridge NSString *)kCVPixelBufferCGImageCompatibilityKey: @(NO),
-                              (__bridge NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @(NO)
-                              };
+                              (NSString *)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA),
+                              (NSString *)kCVPixelBufferOpenGLCompatibilityKey: @YES,
+                              (NSString *)kCVPixelBufferIOSurfacePropertiesKey: @{}
+                             // (__bridge NSString *)kCVPixelBufferCGImageCompatibilityKey: @(YES),
+                             // (__bridge NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey: @(YES)
+                              //(__bridge NSString *)kCVPixelBufferOpenGLCompatibilityKey: @(YES)
+                             };
     CVPixelBufferRef pixelBuffer;
-    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, frameSize.width,
-                                          frameSize.height,  kCVPixelFormatType_32ARGB, (__bridge CFDictionaryRef) options,
+    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                          frameSize.width,
+                                          frameSize.height,
+                                          kCVPixelFormatType_32BGRA,//preflipped for opengl + GL_RGBA
+                                          (__bridge CFDictionaryRef) options,
                                           &pixelBuffer);
     if (status != kCVReturnSuccess) {
         return NULL;
@@ -476,8 +533,74 @@ bail:
 
 + (GLKMatrix3)CGAffineTransformToGLKMatrix3:(CGAffineTransform)affineTransform
 {
-    return GLKMatrix3Make(  affineTransform.a,  affineTransform.b,  0,
+    return GLKMatrix3Make(affineTransform.a,  affineTransform.b,  0,
                           affineTransform.c,  affineTransform.d,  0,
                           affineTransform.tx, affineTransform.ty, 1 );
+}
+
++(UIImage *)imageWithFlippedRGBOfImage:(UIImage *)image
+{
+    // ??? vImageConvert_RGB888toARGB8888
+    // ??? http://stackoverflow.com/questions/11607753/cvopenglestexturecachecreatetexturefromimage-on-ipad2-is-too-slow-it-needs-almo
+    CGSize layerPixelSize = image.size;
+    CGImageRef imageRef = image.CGImage;
+    size_t width                    = (int)layerPixelSize.width;//CGImageGetWidth(imageRef);
+    size_t height                   = (int)layerPixelSize.height;//CGImageGetHeight(imageRef);
+    size_t bitsPerComponent         = 8;//CGImageGetBitsPerComponent(imageRef);
+    size_t bitsPerPixel             = 32;//CGImageGetBitsPerPixel(imageRef);
+    size_t bytesPerPixel            = 4;
+    size_t bytesPerRow              = (int)width * bytesPerPixel;//CGImageGetBytesPerRow(imageRef);
+    CGBitmapInfo bitmapInfo         = kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst;//CGImageGetBitmapInfo(imageRef);
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    size_t imageDataLen = height * width * bytesPerPixel;
+    unsigned char *imageData = (unsigned char*) calloc(imageDataLen, sizeof(unsigned char));
+    CGContextRef context = CGBitmapContextCreate(imageData, width, height,
+                                                 bitsPerComponent, bytesPerRow, colorspace,
+                                                 bitmapInfo);
+    CGContextDrawImage(context, CGRectMake(0, 0, width, height), imageRef);
+    CGContextRelease(context);
+    
+    // run through every pixel, a scan line at a time...
+    for(int y = 0; y < (int)layerPixelSize.height; y++)
+    {
+        // get a pointer to the start of this scan line
+        unsigned char *linePointer = &imageData[y * ((int)layerPixelSize.width) * 4];
+        
+        // step through the pixels one by one...
+        for(int x = 0; x < (int)layerPixelSize.width; x++)
+        {
+            int r, g, b;
+            r = linePointer[0];
+            g = linePointer[1];
+            b = linePointer[2];
+            linePointer[0] = b;
+            linePointer[1] = g;
+            linePointer[2] = r;
+            linePointer += 4;
+        }
+    }
+    
+    // create a new image from the modified pixel data
+    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, imageData, imageDataLen, NULL);
+    CGImageRef newImageRef = CGImageCreate (
+                                            width,
+                                            height,
+                                            bitsPerComponent,
+                                            bitsPerPixel,
+                                            bytesPerRow,
+                                            colorspace,
+                                            bitmapInfo,
+                                            provider,
+                                            NULL,
+                                            false,
+                                            kCGRenderingIntentDefault
+                                            );
+    // the modified image
+    UIImage *newImage = [UIImage imageWithCGImage:newImageRef];
+    CGColorSpaceRelease(colorspace);
+    CGDataProviderRelease(provider);
+    CGImageRelease(newImageRef);
+    //free(imageData);// should not be freed, or UIImage will be BROKEN!!!
+    return newImage;
 }
 @end

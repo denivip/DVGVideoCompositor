@@ -5,6 +5,7 @@
 
 @class DVGStackableCompositionInstruction;
 typedef void (^DVGStackableCompositionInstructionProgressBlock)(DVGStackableCompositionInstruction*);
+typedef CVPixelBufferRef (^DVGStackableCompositionInstructionFrameBufferFabricator)(CMPersistentTrackID trackId);
 
 @interface DVGStackableCompositionInstruction : NSObject <AVVideoCompositionInstruction>
 // AVVideoCompositionInstruction traits
@@ -17,9 +18,12 @@ typedef void (^DVGStackableCompositionInstructionProgressBlock)(DVGStackableComp
 @property (nonatomic) NSMutableDictionary* pools;
 @property (nonatomic) CVPixelBufferRef lastOkRenderedPixels;
 @property (nonatomic) DVGStackableCompositionInstructionProgressBlock onBeforeRenderingFrame;
+@property (nonatomic) DVGStackableCompositionInstructionFrameBufferFabricator onTrackFrameNeeded;
 @property (nonatomic) CGFloat actualRenderTime;
 @property (nonatomic) CGFloat actualRenderProgress;
-
+@property (nonatomic) CGSize actualRenderSize;
+@property (nonatomic) NSValue* actualRenderTransform;
+- (id)initProcessingZero;
 - (id)initProcessingWithSourceTrackIDs:(NSArray*)sourceTrackIDs forTimeRange:(CMTimeRange)timeRange;
 - (id)getPixelBufferPoolForWidth:(int)w andHeight:(int)h;
 @end

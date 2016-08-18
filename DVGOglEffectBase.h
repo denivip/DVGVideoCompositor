@@ -88,5 +88,7 @@ typedef enum {
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;
 + (GLKTextureInfo*)createGLKTextureFromCGImage:(CGImageRef)image;
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image;
++ (CGImageRef)createCGImageFromPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 + (GLKMatrix3)CGAffineTransformToGLKMatrix3:(CGAffineTransform)affineTransform;
++(UIImage *)imageWithFlippedRGBOfImage:(UIImage *)image;
 @end
