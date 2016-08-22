@@ -8,6 +8,10 @@
 #import "DVGOglEffectAnimatedRainbowMask.h"
 #import "DVGOglEffectPixellate.h"
 #import "DVGOglEffectPolkaDot.h"
+#import "DVGOglEffectToonPoster.h"
+#import "DVGOglEffectKuwahara.h"
+#import "DVGOglEffectVignette.h"
+#import "DVGOglEffectSketch.h"
 #import "DVGEasing.h"
 
 extern NSString* kCompEffectOptionExportSize;
