@@ -6,6 +6,8 @@
 #import "DVGOglEffectColorSaturation.h"
 #import "DVGOglEffectAnimatedTrackFrameRemap.h"
 #import "DVGOglEffectAnimatedRainbowMask.h"
+#import "DVGOglEffectPixellate.h"
+#import "DVGOglEffectPolkaDot.h"
 #import "DVGEasing.h"
 
 extern NSString* kCompEffectOptionExportSize;
