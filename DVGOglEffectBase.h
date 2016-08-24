@@ -44,6 +44,20 @@ typedef enum {
     DVGGLBlendAdd
 } DVGGLBlendMode;
 
+struct GPUVector3 {
+    GLfloat one;
+    GLfloat two;
+    GLfloat three;
+};
+typedef struct GPUVector3 GPUVector3;
+
+struct GPUMatrix3x3 {
+    GPUVector3 one;
+    GPUVector3 two;
+    GPUVector3 three;
+};
+typedef struct GPUMatrix3x3 GPUMatrix3x3;
+
 @interface DVGOglEffectShader : NSObject
 @property GLuint rplProgram;
 @property NSArray* rplProgramAttPairs;
@@ -90,5 +104,6 @@ typedef enum {
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image;
 + (CGImageRef)createCGImageFromPixelBuffer:(CVPixelBufferRef)pixelBuffer;
 + (GLKMatrix3)CGAffineTransformToGLKMatrix3:(CGAffineTransform)affineTransform;
-+(UIImage *)imageWithFlippedRGBOfImage:(UIImage *)image;
++ (UIImage *)imageWithFlippedRGBOfImage:(UIImage *)image;
++ (void)applyTransform:(CGAffineTransform)trf toCoords:(GLfloat*)textureCoords amount:(int)c center:(CGPoint)center;
 @end

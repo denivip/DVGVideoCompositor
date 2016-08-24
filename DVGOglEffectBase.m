@@ -603,4 +603,13 @@ static void ReleaseCVPixelBuffer(void *pixel, const void *data, size_t size)
     //free(imageData);// should not be freed, or UIImage will be BROKEN!!!
     return newImage;
 }
+
++ (void)applyTransform:(CGAffineTransform)trf toCoords:(GLfloat*)textureCoords amount:(int)c center:(CGPoint)center {
+    for(int i=0; i < c*2; i += 2){
+        CGPoint tp1 = CGPointMake(textureCoords[i]-center.x, textureCoords[i+1]-center.y);
+        tp1 = CGPointApplyAffineTransform(tp1, trf);
+        textureCoords[i] = tp1.x+center.x;
+        textureCoords[i+1] = tp1.y+center.y;
+    }
+}
 @end
