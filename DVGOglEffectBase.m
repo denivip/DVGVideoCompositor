@@ -362,6 +362,35 @@ bail:
     return orient;
 }
 
++ (const GLfloat *)traformRSForRotation:(DVGGLRotationMode)rotationMode
+{
+    // Rotation, scaleX, scaleY
+    static const GLfloat noRotationTransformRS[] = {
+        0.0f, 1.0f, 1.0f
+    };
+    static const GLfloat rotateRightTransformRS[] = {
+        M_PI_2, 1.0f, 1.0f
+    };
+    static const GLfloat rotateLeftTransformRS[] = {
+        -M_PI_2, 1.0f, 1.0f
+    };
+    static const GLfloat rotate180TransformRS[] = {
+        M_PI, 1.0f, 1.0f
+    };
+    switch(rotationMode)
+    {
+        case kDVGGLNoRotation: return noRotationTransformRS;
+        case kDVGGLRotateLeft: return rotateLeftTransformRS;
+        case kDVGGLRotateRight: return rotateRightTransformRS;
+//      case kDVGGLFlipVertical: return verticalFlipTextureCoordinates;
+//      case kDVGGLFlipHorizonal: return horizontalFlipTextureCoordinates;
+//      case kDVGGLRotateRightFlipVertical: return rotateRightVerticalFlipTextureCoordinates;
+//      case kDVGGLRotateRightFlipHorizontal: return rotateRightHorizontalFlipTextureCoordinates;
+        case kDVGGLRotate180: return rotate180TransformRS;
+        default: return noRotationTransformRS;
+    }
+}
+
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode
 {
     static const GLfloat noRotationTextureCoordinates[] = {
@@ -462,7 +491,7 @@ static void ReleaseCVPixelBuffer(void *pixel, const void *data, size_t size)
     CGDataProviderRef provider = NULL;
     CGImageRef image = NULL;
     
-    OSType sourcePixelFormat = CVPixelBufferGetPixelFormatType( pixelBuffer );
+//    OSType sourcePixelFormat = CVPixelBufferGetPixelFormatType( pixelBuffer );
 //    if ( kCVPixelFormatType_32ARGB == sourcePixelFormat )
 //        bitmapInfo = kCGBitmapByteOrder32Big;// | kCGImageAlphaNoneSkipFirst;
 //    else if ( kCVPixelFormatType_32RGBA == sourcePixelFormat )

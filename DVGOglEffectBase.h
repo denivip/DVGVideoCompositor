@@ -100,6 +100,7 @@ typedef struct GPUMatrix3x3 GPUMatrix3x3;
 + (DVGGLRotationMode)orientationForPrefferedTransform:(CGAffineTransform)preferredTransform andSize:(CGSize)videoSize;
 + (CGSize)landscapeSizeForOrientation:(DVGGLRotationMode)orientation andSize:(CGSize)videoSize;
 + (const GLfloat *)textureCoordinatesForRotation:(DVGGLRotationMode)rotationMode;
++ (const GLfloat *)traformRSForRotation:(DVGGLRotationMode)rotationMode;
 + (GLKTextureInfo*)createGLKTextureFromCGImage:(CGImageRef)image;
 + (CVPixelBufferRef)createPixelBufferFromCGImage:(CGImageRef)image;
 + (CGImageRef)createCGImageFromPixelBuffer:(CVPixelBufferRef)pixelBuffer;
