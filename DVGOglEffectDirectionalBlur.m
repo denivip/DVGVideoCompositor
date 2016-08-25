@@ -32,7 +32,6 @@ enum
 {
     if (blurRadius < 1)
     {
-        //return kGPUImageVertexShaderString;
         blurRadius = 1;
     }
     
@@ -77,7 +76,6 @@ enum
 {
     if (blurRadius < 1)
     {
-        //return kGPUImagePassthroughFragmentShaderString;
         blurRadius = 1;
     }
     
