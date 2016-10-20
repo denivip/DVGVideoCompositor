@@ -328,7 +328,8 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
     compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
     CMTimeRange timeRangeInAsset = CMTimeRangeMake(kCMTimeZero, [asset duration]);
     [compositionVideoTrack insertTimeRange:timeRangeInAsset ofTrack:videoTrack atTime:kCMTimeZero error:nil];
-    
+    CGSize videoOrigSize = [videoTrack naturalSize];
+    DDLogWarn(@"prepareComposition: Adding base track, origsize: %0.02f:%0.02f, duration: %0.02fs", videoOrigSize.width, videoOrigSize.height, CMTimeGetSeconds([asset duration]));
     NSArray* audioTracks = [asset tracksWithMediaType:AVMediaTypeAudio];
     if([audioTracks count] > 0){
         AVMutableCompositionTrack *compositionAudioTrack;
@@ -352,11 +353,11 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
             AVMutableCompositionTrack *compositionVideoTrack2;
             compositionVideoTrack2 = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
             CMTimeRange timeRangeInAsset2 = CMTimeRangeMake(kCMTimeZero, [asset2 duration]);
-            //NSLog(@"Adding track %i, time: %0.02f (base time %0.02f)", compositionVideoTrack2.trackID, CMTimeGetSeconds([asset2 duration]), CMTimeGetSeconds([asset duration]));
+            DDLogWarn(@"prepareComposition: Adding track %i, duration: %0.02fs", compositionVideoTrack2.trackID, CMTimeGetSeconds([asset2 duration]));
             NSError* insertErr = nil;
             [compositionVideoTrack2 insertTimeRange:timeRangeInAsset2 ofTrack:videoTrack2 atTime:kCMTimeZero error:&insertErr];
             if(insertErr){
-                DDLogError(@"Can`t insert track %@", videoTrack2);
+                DDLogError(@"prepareComposition: Can`t insert track %@", videoTrack2);
             }else{
                 [compositionTracks addObject:@(compositionVideoTrack2.trackID)];
             }
