@@ -377,7 +377,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
             {
                 trackIdx = 1;
             }
-            if(trackIdx <= 0 || trackIdx-1 > [compositionTracks count]){
+            if(trackIdx <= 0 || trackIdx-1 >= [compositionTracks count]){
                 trackIdx = 0;
             }
             renderer.effectTrackID = (trackIdx>0)?[[compositionTracks objectAtIndex:trackIdx-1] intValue]:kCMPersistentTrackID_Invalid;
