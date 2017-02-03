@@ -6,6 +6,31 @@ enum
     UNIFORM_KEYFA_SAMPLER2_RPL
 };
 
+static NSString* kEffectVertexShader = SHADER_STRING
+(
+ attribute vec4 position;
+ attribute vec2 texCoord;
+ uniform mat4 renderTransform;
+ varying vec2 texCoordVarying;
+ void main()
+ {
+     gl_Position = position * renderTransform;
+     texCoordVarying = texCoord;
+ }
+ );
+
+static NSString* kEffectFragmentShader = SHADER_STRING
+(
+ varying highp vec2 texCoordVarying;
+ uniform highp vec4 rplColorTint;
+ uniform sampler2D rplSampler;
+ void main()
+ {
+     highp vec4 textColor = texture2D(rplSampler, texCoordVarying);
+     gl_FragColor = rplColorTint*textColor;
+ }
+ );
+
 static NSString* kEffect2VertexShader = SHADER_STRING
 (
  attribute vec4 position;
@@ -26,6 +51,7 @@ static NSString* kEffect2VertexShader = SHADER_STRING
 static NSString* kEffect2FragmentShader = SHADER_STRING
 (
  uniform highp vec4 rplColorTint;
+ uniform highp vec4 rplTransparentColor;
  varying highp vec2 texCoordVarying1;
  varying highp vec2 texCoordVarying2;
  uniform sampler2D rplSampler;
@@ -34,34 +60,12 @@ static NSString* kEffect2FragmentShader = SHADER_STRING
  {
      highp vec4 textColor1 = texture2D(rplSampler, texCoordVarying1);
      highp vec4 textColor2 = texture2D(rplSampler2, texCoordVarying2);
+     if(abs(textColor2.r-rplTransparentColor.r)+abs(textColor2.g-rplTransparentColor.g)+abs(textColor2.b-rplTransparentColor.b)<0.1){
+         textColor2 = vec4(0,0,0,0);
+     }
      gl_FragColor = rplColorTint*textColor1*textColor2;
  }
  );
-
-static NSString* kEffectVertexShader = SHADER_STRING
-(
-    attribute vec4 position;
-    attribute vec2 texCoord;
-    uniform mat4 renderTransform;
-    varying vec2 texCoordVarying;
-    void main()
-    {
-        gl_Position = position * renderTransform;
-        texCoordVarying = texCoord;
-    }
-);
-
-static NSString* kEffectFragmentShader = SHADER_STRING
-(
-    varying highp vec2 texCoordVarying;
-    uniform highp vec4 rplColorTint;
-    uniform sampler2D rplSampler;
-    void main()
-    {
-        highp vec4 textColor = texture2D(rplSampler, texCoordVarying);
-        gl_FragColor = rplColorTint*textColor;
-    }
-);
 
 @interface DVGOglEffectKeyframedAnimation ()
 @property NSMutableArray* objectsOglBuffers;
@@ -101,7 +105,8 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                                 @[@(UNIFORM_RENDER_TRANSFORM_RPL), @"renderTransform"],
                                 @[@(UNIFORM_SHADER_SAMPLER_RPL), @"rplSampler"],
                                 @[@(UNIFORM_KEYFA_SAMPLER2_RPL), @"rplSampler2"],
-                                @[@(UNIFORM_SHADER_COLORTINT_RPL), @"rplColorTint"]
+                                @[@(UNIFORM_SHADER_COLORTINT_RPL), @"rplColorTint"],
+                                @[@(UNIFORM_SHADER_COLORTRANSP_RPL), @"rplTransparentColor"]
                                 ]
      ];
     self.objectsOglBuffers = @[].mutableCopy;
@@ -147,7 +152,8 @@ static NSString* kEffectFragmentShader = SHADER_STRING
         CVOpenGLESTextureRef trckBGRATexture = [self bgraTextureForPixelBuffer:trackBuffer];
         CVOpenGLESTextureRef destBGRATexture = [self bgraTextureForPixelBuffer:destBuffer];
         CVOpenGLESTextureRef trcoBGRATexture = nil;
-        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture){
+        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture
+           || self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey){
             trcoBGRATexture = [self bgraTextureForPixelBuffer:trackBufferOriginal];
         }
         // Attach the destination texture as a color attachment to the off screen frame buffer
@@ -172,7 +178,7 @@ static NSString* kEffectFragmentShader = SHADER_STRING
 		glClear(GL_COLOR_BUFFER_BIT);
 
         [self activateContextShader:1];
-        if(self.objectsRenderingMode != kDVGOEKA_trackAsTexture || prevBuffer != nil){
+        if(!(self.objectsRenderingMode == kDVGOEKA_trackAsTexture || self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey) || prevBuffer != nil){
             static const GLfloat backgroundVertices[] = {
                 -1.0f, -1.0f,
                 1.0f, -1.0f,
@@ -189,11 +195,20 @@ static NSString* kEffectFragmentShader = SHADER_STRING
             GLfloat basecolortint[4] = {1,1,1,1};
             glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
             
+            if((self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey)){
+                GLfloat basecolortransp[4] = {self.colorKeyForMask_r,self.colorKeyForMask_g,self.colorKeyForMask_b,0};
+                glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
+            }else{
+                GLfloat basecolortransp[4] = {-1,-1,-1,-1};
+                glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
+            }
+            
             // Draw the background frame
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
         
-        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture){
+        if(self.objectsRenderingMode == kDVGOEKA_trackAsTexture
+           || self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey){
             if(trcoBGRATexture){
                 [self activateContextShader:2];
                 glUniform1i([self getActiveShaderUniform:UNIFORM_KEYFA_SAMPLER2_RPL], 1);
@@ -268,7 +283,9 @@ static NSString* kEffectFragmentShader = SHADER_STRING
                 glVertexAttribPointer(ATTRIB_TEXCOORD_RPL, 2, GL_FLOAT, 0, 0, textureCoords);
                 glEnableVertexAttribArray(ATTRIB_TEXCOORD_RPL);
                 
-                if(trcoBGRATexture && self.objectsRenderingMode == kDVGOEKA_trackAsTexture)
+                if(trcoBGRATexture
+                   && (self.objectsRenderingMode == kDVGOEKA_trackAsTexture
+                    || self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey))
                 {
                     GLfloat const* textureCoords2 = [DVGOglEffectBase textureCoordinatesForRotation:trackOrientation];
                     CGPoint tp1 = CGPointMake(textureCoords2[0]-0.5, textureCoords2[1]-0.5);
