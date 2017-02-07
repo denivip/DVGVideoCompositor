@@ -60,8 +60,10 @@ static NSString* kEffect2FragmentShader = SHADER_STRING
  {
      highp vec4 textColor1 = texture2D(rplSampler, texCoordVarying1);
      highp vec4 textColor2 = texture2D(rplSampler2, texCoordVarying2);
-     if(abs(textColor2.r-rplTransparentColor.r)+abs(textColor2.g-rplTransparentColor.g)+abs(textColor2.b-rplTransparentColor.b)<0.1){
-         textColor2 = vec4(0,0,0,0);
+     if(rplTransparentColor.a > 0.5){
+         if(abs(textColor2.r-rplTransparentColor.r)+abs(textColor2.g-rplTransparentColor.g)+abs(textColor2.b-rplTransparentColor.b)<0.1){
+             textColor2 = vec4(0,0,0,0);
+         }
      }
      gl_FragColor = rplColorTint*textColor1*textColor2;
  }
@@ -195,14 +197,6 @@ static NSString* kEffect2FragmentShader = SHADER_STRING
             GLfloat basecolortint[4] = {1,1,1,1};
             glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTINT_RPL], 1, basecolortint);
             
-            if((self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey)){
-                GLfloat basecolortransp[4] = {self.colorKeyForMask_r,self.colorKeyForMask_g,self.colorKeyForMask_b,0};
-                glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
-            }else{
-                GLfloat basecolortransp[4] = {-1,-1,-1,-1};
-                glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
-            }
-            
             // Draw the background frame
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
@@ -212,6 +206,14 @@ static NSString* kEffect2FragmentShader = SHADER_STRING
             if(trcoBGRATexture){
                 [self activateContextShader:2];
                 glUniform1i([self getActiveShaderUniform:UNIFORM_KEYFA_SAMPLER2_RPL], 1);
+                if((self.objectsRenderingMode == kDVGOEKA_trackAsTextureColorKey)){
+                    // rplTransparentColor
+                    GLfloat basecolortransp[4] = {self.colorKeyForMask_r,self.colorKeyForMask_g,self.colorKeyForMask_b, 1};
+                    glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
+                }else{
+                    GLfloat basecolortransp[4] = {0,0,0,0};
+                    glUniform4fv([self getActiveShaderUniform:UNIFORM_SHADER_COLORTRANSP_RPL], 1, basecolortransp);
+                }
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(CVOpenGLESTextureGetTarget(trcoBGRATexture), CVOpenGLESTextureGetName(trcoBGRATexture));
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
