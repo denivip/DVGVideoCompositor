@@ -21,6 +21,7 @@ dispatch_queue_t renderContextQueue;
 @end
 
 static __weak DVGStackableVideoCompositor* g_activeCompositor;
+static BOOL g_IsCompositingActive = YES;
 @implementation DVGStackableVideoCompositor
 
 #pragma mark - AVVideoCompositing protocol
@@ -44,6 +45,10 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 
 + (DVGStackableVideoCompositor*)getActiveVideoProcessingCompositor {
     return g_activeCompositor;
+}
+
++ (void)enableCompositingGlobally:(BOOL)bEnable {
+    g_IsCompositingActive = bEnable;
 }
 
 - (NSDictionary *)sourcePixelBufferAttributes
@@ -75,7 +80,7 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 		dispatch_async(renderingQueue,^() {
 			
 			// Check if all pending requests have been cancelled
-			if (_shouldCancelAllRequests) {
+			if (_shouldCancelAllRequests || !g_IsCompositingActive) {
 				[request finishCancelledRequest];
 			} else {
 				NSError *err = nil;
@@ -177,12 +182,14 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
                 break;
             }
         }
-        [renderer renderIntoPixelBuffer:dstPixels
-                             prevBuffer:prevBuffer
-                            trackBuffer:trackBuffer
-                            trackOrient:trackOrientation
-                                 atTime:currentInstruction.actualRenderTime
-                              withTween:currentInstruction.actualRenderProgress];
+        if(g_IsCompositingActive){
+            [renderer renderIntoPixelBuffer:dstPixels
+                                 prevBuffer:prevBuffer
+                                trackBuffer:trackBuffer
+                                trackOrient:trackOrientation
+                                     atTime:currentInstruction.actualRenderTime
+                                  withTween:currentInstruction.actualRenderProgress];
+        }
         if(prevBuffer){
             CVPixelBufferRelease(prevBuffer);
             prevBuffer = nil;
@@ -400,35 +407,37 @@ static __weak DVGStackableVideoCompositor* g_activeCompositor;
 + (UIImage*)renderSingleFrameWithImage:(UIImage*)frame andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions {
     __block  UIImage* res = nil;
     dispatch_sync(renderingQueue,^() {
-        DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingZero];
-        videoInstruction.actualRenderSize = frame.size;
-        videoInstruction.actualRenderTime = 0;
-        videoInstruction.actualRenderProgress = 0;
-        videoInstruction.actualRenderTransform = nil;
-        videoInstruction.renderersStack = effstack;
-        videoInstruction.actualRenderTransform = [NSValue valueWithCGAffineTransform:CGAffineTransformIdentity];
-        UIImage* frameFlipped = frame;//[DVGOglEffectBase imageWithFlippedRGBOfImage:frame];
-        CGImageRef frameFlippedCG = [frameFlipped CGImage];
-        CVPixelBufferRef frameBuffer = [DVGOglEffectBase createPixelBufferFromCGImage:frameFlippedCG];
-        DVGStackableCompositionInstructionFrameBufferFabricator ibf = ^(CMPersistentTrackID effectTrackID){
-            return frameBuffer;
-        };
-       
-        //CVPixelBufferRef buff = ibf(0);CFRetain(buff);
-        CVPixelBufferRef buff = [DVGStackableVideoCompositor renderSingleFrameWithInstruction:videoInstruction trackFrameFabricator:ibf];
-        CGImageRef cgImage = [DVGOglEffectBase createCGImageFromPixelBuffer:buff];
-        if(cgImage != nil){
-            res = [UIImage imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationUp];
-        }
-        if(buff != nil){
-            CVPixelBufferRelease(buff);
+        if(g_IsCompositingActive){
+            DVGStackableCompositionInstruction *videoInstruction = [[DVGStackableCompositionInstruction alloc] initProcessingZero];
+            videoInstruction.actualRenderSize = frame.size;
+            videoInstruction.actualRenderTime = 0;
+            videoInstruction.actualRenderProgress = 0;
+            videoInstruction.actualRenderTransform = nil;
+            videoInstruction.renderersStack = effstack;
+            videoInstruction.actualRenderTransform = [NSValue valueWithCGAffineTransform:CGAffineTransformIdentity];
+            UIImage* frameFlipped = frame;//[DVGOglEffectBase imageWithFlippedRGBOfImage:frame];
+            CGImageRef frameFlippedCG = [frameFlipped CGImage];
+            CVPixelBufferRef frameBuffer = [DVGOglEffectBase createPixelBufferFromCGImage:frameFlippedCG];
+            DVGStackableCompositionInstructionFrameBufferFabricator ibf = ^(CMPersistentTrackID effectTrackID){
+                return frameBuffer;
+            };
             
-        }
-        if(cgImage != nil){
-            CGImageRelease(cgImage);
-        }
-        if(frameBuffer != nil){
-            CVPixelBufferRelease(frameBuffer);
+            //CVPixelBufferRef buff = ibf(0);CFRetain(buff);
+            CVPixelBufferRef buff = [DVGStackableVideoCompositor renderSingleFrameWithInstruction:videoInstruction trackFrameFabricator:ibf];
+            CGImageRef cgImage = [DVGOglEffectBase createCGImageFromPixelBuffer:buff];
+            if(cgImage != nil){
+                res = [UIImage imageWithCGImage:cgImage scale:1.0 orientation:UIImageOrientationUp];
+            }
+            if(buff != nil){
+                CVPixelBufferRelease(buff);
+                
+            }
+            if(cgImage != nil){
+                CGImageRelease(cgImage);
+            }
+            if(frameBuffer != nil){
+                CVPixelBufferRelease(frameBuffer);
+            }
         }
     });
     return res;

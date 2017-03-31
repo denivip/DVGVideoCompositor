@@ -27,6 +27,6 @@ extern NSString* kCompEffectOptionProgressBlock;
 + (AVAssetExportSession*)createExportSessionWithAsset:(AVAsset*)asset andAnimationScene:(DVGKeyframedAnimationScene*)animscene;
 + (DVGStackableVideoCompositor*)getActiveVideoProcessingCompositor;
 + (UIImage*)renderSingleFrameWithImage:(UIImage*)frame andEffectsStack:(NSArray<DVGOglEffectBase*>*)effstack options:(NSDictionary*)svcOptions;
-
++ (void)enableCompositingGlobally:(BOOL)bEnable;
 @end
 
