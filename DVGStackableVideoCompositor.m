@@ -257,8 +257,12 @@ static BOOL g_IsCompositingActive = YES;
     if (videoComposition) {
         AVAssetExportSession* exportSession = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetHighestQuality];
         exportSession.outputFileType = AVFileTypeQuickTimeMovie;
+        CMTime frameDur = videoTrack.minFrameDuration;// Preserving ORIGINAL fps!
+        if(CMTIME_IS_INVALID(frameDur)){
+            frameDur = CMTimeMake(1, 30); // 30 fps
+        }
         // Every videoComposition needs these properties to be set:
-        videoComposition.frameDuration = CMTimeMake(1, 30); // 30 fps
+        videoComposition.frameDuration = frameDur;
         videoComposition.renderSize = videoSize;
         exportSession.videoComposition = videoComposition;
         return exportSession;
