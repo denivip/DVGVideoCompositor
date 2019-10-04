@@ -4,7 +4,8 @@
 #import "DVGOglEffectBase.h"
 #import <CoreVideo/CoreVideo.h>
 #import "DVGEasing.h"
-static int ddLogLevel = LOG_LEVEL_VERBOSE;
+
+static int ddLogLevel = DDLogLevelVerbose;
 NSString* kCompEffectOptionExportSize = @"kCompEffectOptionExportSize";
 NSString* kCompEffectOptionProgressBlock = @"kCompEffectOptionProgressBlock";
 dispatch_queue_t renderingQueue;

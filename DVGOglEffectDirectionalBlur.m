@@ -1,5 +1,5 @@
 #import "DVGOglEffectDirectionalBlur.h"
-static int ddLogLevel = LOG_LEVEL_VERBOSE;
+static int ddLogLevel = DDLogLevelVerbose;
 
 enum
 {
